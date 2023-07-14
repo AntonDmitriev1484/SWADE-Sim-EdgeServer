@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  s1:
+    container_name: s1 #this lets you manually specify the name
+    image: potato
+    networks:
+      - potato-net
+    #rm: true
+
+  s2:
+    container_name: s2
+    image: potato
+    networks:
+      - potato-net
+    #rm: true
+
+# options: #don't even think I need to manually specify this!
+#   s1:
+#     rm: true
+#   s2:
+#     rm: true
+
+# Only defines the network for this config file, doesn't try to re-create it.
+networks:
+  potato-net:
+    driver: bridge
