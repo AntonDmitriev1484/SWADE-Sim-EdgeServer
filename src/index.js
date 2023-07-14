@@ -36,7 +36,7 @@ fs.createReadStream('./data/color_srgb.csv') // Looks from project working dir
   .pipe(csv())
   .on('data', (row) => {
     // Process each row of the CSV data
-    //post_to_cloud(row);
+    post_to_cloud(row);
     console.log(row);
     
   })

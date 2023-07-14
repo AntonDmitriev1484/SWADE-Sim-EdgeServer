@@ -5,7 +5,7 @@ EXPOSE 3000
 
 COPY package.json /app/
 COPY src /app/
-COPY data /app/
+COPY data /app/data
 # later we need to mount the data to the container, for now, while testing,
 # we can just copy the entire thing in
 
