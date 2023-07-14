@@ -1,12 +1,16 @@
 import csv from "csv-parser"
 import fs from "fs"
 
+// Hostname that our dummy cloud server container will have 
+// on docker network 'edge-test'
+const HOST = "http://cloud-srv"
+const ENDPOINT = ":3000/";
+const URL = HOST+ENDPOINT;
 
-const ENDPOINT = "http://...";
 const REQ_RATE = 1000;
 
 let post_to_cloud = (row) => {
-    fetch(ENDPOINT, 
+    fetch(URL, 
         {
             method: 'POST',
             headers: {

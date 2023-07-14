@@ -2,10 +2,13 @@ FROM node:19-alpine
 # Specify Linux OS to package
 
 EXPOSE 3000
-EXPOSE 3001
 
 COPY package.json /app/
 COPY src /app/
+COPY data /app/
+# later we need to mount the data to the container, for now, while testing,
+# we can just copy the entire thing in
+
 # copy both of these into the image's container directory
 
 WORKDIR /app/
