@@ -32,7 +32,7 @@ let post_to_cloud = (row) => {
 // and then iterate through the object fields (single json row)
 
 // Awwooooga functional for reading in CSV files
-fs.createReadStream('./data/color_srgb.csv') // Looks from project working dir
+fs.createReadStream('./data/color_srgb.csv') // Where this will be in the docker directory
   .pipe(csv())
   .on('data', (row) => {
     // Process each row of the CSV data
