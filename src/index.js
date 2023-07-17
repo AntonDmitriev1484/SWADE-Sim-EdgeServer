@@ -9,7 +9,7 @@ const URL = HOST+ENDPOINT;
 
 const REQ_RATE = 1000;
 
-let post_to_cloud = (row) => {
+function post_to_cloud(row) {
     fetch(URL, 
         {
             method: 'POST',
@@ -28,11 +28,8 @@ let post_to_cloud = (row) => {
           });
 }
 
-// Reading in json files, I'm pretty sure you json.parse
-// and then iterate through the object fields (single json row)
-
-// Awwooooga functional for reading in CSV files
-fs.createReadStream('./data/color_srgb.csv') // Where this will be in the docker directory
+function read_file(path) {
+  fs.createReadStream(path) // Where this will be in the docker directory
   .pipe(csv())
   .on('data', (row) => {
     // Process each row of the CSV data
@@ -44,3 +41,27 @@ fs.createReadStream('./data/color_srgb.csv') // Where this will be in the docker
     // Parsing is completed
     console.log('CSV file parsed successfully.');
   });
+}
+
+const currentDirectory = process.cwd();
+// Read every file in the directory mounted to data
+// At this point CWD is /app, why?
+fs.readdir('./data', (err, files) => {
+  
+  if (err) {
+
+    console.error('Error reading directory:', err);
+    return;
+  }
+
+  // Iterate through each file
+  files.forEach(file => {
+    const filePath = currentDirectory+'/data/'+file;
+    read_file(filePath);
+  });
+});
+
+
+// Reading in json files, I'm pretty sure you json.parse
+// and then iterate through the object fields (single json row)
+
