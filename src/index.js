@@ -1,6 +1,7 @@
 import csv from "csv-parser"
 import fs from "fs"
 import express from "express"
+import moment from "moment"
 
 const app = express();
 app.use(express.json());
@@ -10,7 +11,8 @@ app.use(express.json());
 const HOST = "http://c-srv"
 const ENDPOINT = ":3000/";
 const URL = HOST+ENDPOINT;
-let CSV_ARR = [];
+
+let LAST_SYNC = null;
 
 // Listens for a sync request from the cloud server
 app.get('/sync', (req, res) => {
@@ -51,30 +53,38 @@ function update_timestamps(unsynced) {
 function get_unsynced_entries(path) {
   let unsynced = [];
 
+  // Part of the problem is that its not pushing to unsynced properly
+  // Part of the problem is that its not recognizing when something is unsynced
+
+  const lambda = (row) => {
+    console.log(row);
+
+    const unsync = (LAST_SYNC === null) || (moment(row.last_updated) > (LAST_SYNC));
+    console.log('unsynced? '+unsync+' last sync was: '+LAST_SYNC);
+
+    if (unsync) { //If the data is unsynced by timestamp
+      unsynced.push(row);
+    }
+}
+
   fs.createReadStream(path)
   .pipe(csv())
-  .on('data', (row) => {
-      console.log(row);
-
-      const unsync = (row.last_sync === "never") || (moment(row.last_updated) > moment(row.last_sync));
-
-      if (unsync) { //If the data is unsynced by timestamp
-        unsynced.push(row);
-      }
-  })
+  .on('data', lambda)
   .on('end', () => {
     console.log('CSV file parsed successfully.');
   });
 
+  console.log('logging unsynced array: '+unsynced);
   return unsynced;
 }
 
 // Testing, mimic server request, output to console
 // expect 6 new entires per pring
-const timer = 30*1000;
+const timer = 15*1000;
 setInterval(() => {
   console.log (" ____ ");
-  console.log(get_unsynced_entries('./data/water.csv'));
+  get_unsynced_entries('./data/water.csv');
+  LAST_SYNC = moment();
 }, 
 timer);
 

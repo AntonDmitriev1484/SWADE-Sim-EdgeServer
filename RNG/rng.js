@@ -9,7 +9,12 @@ const filename = "water.csv"; //???
 const path = "./data/"+filename;
 const timer = 1000*5; //5s
 
-const cols = ["a", "b", "c", "last_sync", "last_update"];
+const cols = ["a", "b", "c", "last_update"];
+// For what I'm doing now, last_sync can be a global variable
+// It doesn't have to be a field in the row
+// as we don't really care about the individual syncing / privacy policy on
+// each piece of data.
+// rather, we assume everything gets synced on a heartbeat
 
 export function init_file() {
     
@@ -34,7 +39,7 @@ function generate_rand_row() {
         rand_data[i] = Math.floor(100*Math.random())*100
     }
 
-    let row_data = rand_data.concat( ['never', moment().toISOString()]);
+    let row_data = rand_data.concat( [moment().toISOString()]);
     let row = row_data.join(',')+'\n';
 
     fs.appendFile(path, row,
