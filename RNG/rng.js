@@ -11,7 +11,7 @@ const timer = 1000*5; //5s
 
 const cols = ["a", "b", "c", "last_sync", "last_update"];
 
-function init_file() {
+export function init_file() {
     
     // Writes cols to the file
     fs.writeFile(path, cols.join(',')+"\n", 
