@@ -34,30 +34,33 @@ app.get('/sync', (req, res) => {
 function apply_to_unsynced_entries(path, on_end) {
   let unsynced = [];
 
-  // Part of the problem is that its not pushing to unsynced properly
-  // Part of the problem is that its not recognizing when something is unsynced
+  // This is async, need to write as functional
+  fs.createReadStream(path)
+  .pipe(csv())
+  .on('data', 
+    (row) => {
 
-  const on_data = (row) => {
-    //console.log(row);
+    //   console.log(row);
 
-    const unsync = (LAST_SYNC === null) || (moment(row.last_updated) > (LAST_SYNC));
-    console.log('unsynced? '+unsync+' last sync was: '+LAST_SYNC);
+    // if (LAST_SYNC !== null) { //row lastupdated undefined?
+    //   console.log('Comparing: '+row.last_update+' to '+LAST_SYNC.toISOString());
+    // }
+    // else {
+    //   console.log('Comparing: '+row.last_update+' to null');
+    // }
+    
+    const unsync = (LAST_SYNC === null) || (moment(row.last_update) > (LAST_SYNC));
+    // console.log('Result: '+unsync);
 
     if (unsync) { //If the data is unsynced by timestamp
       unsynced.push(row);
     }
-}
-
-  // This is async, need to write as functional
-  fs.createReadStream(path)
-  .pipe(csv())
-  .on('data', on_data)
+  })
   .on('end', () => {
     on_end(unsynced)
     console.log('CSV file parsed successfully.');
   });
 }
-
 
 
 // Testing, mimic server request, output to console
@@ -66,11 +69,18 @@ const timer = 15*1000;
 setInterval(() => {
   console.log (" ____ ");
 
-  apply_to_unsynced_entries('./data/water.csv', (unsynced) => {
-    console.log(unsynced);
-  });
+  apply_to_unsynced_entries('./data/water.csv', 
+    (unsynced) => {
+      if (LAST_SYNC !== null) {
+        console.log(LAST_SYNC.toISOString());
+      }
+      else {
+        console.log("LAST_SYNC is null");
+      }
+      console.log(unsynced);
+      LAST_SYNC = moment();
+    });
 
-  LAST_SYNC = moment();
 }, 
 timer);
 
