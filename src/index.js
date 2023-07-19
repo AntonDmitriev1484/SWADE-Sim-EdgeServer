@@ -21,43 +21,24 @@ app.get('/sync', (req, res) => {
   const filename = "water.csv"; //???
   const path = "./data/"+filename;
 
-  let unsynced = get_unsynced_entries(path);
-  res.send(unsynced);
+  const send_result = (unsynced) => {
+    res.send(unsynced);
+  }
+
+  apply_to_unsynced_entries(path, send_result);
 
 });
 
-function update_timestamps(unsynced) {
-  // Options for updating
-  // 1. Read CSV file into big array that lives in the script, perform all R/W there
-  // 2. Keep track of rows that need to be changed, copy/re-write the file in a second pass
-
-  fs.createReadStream(path)
-  .pipe(csv())
-  .on('data', (row) => {
-      if (unsynced.find(row)) {
-        // Write an updated row
-
-      }
-      else {
-        // Write the same row
-
-      }
-  })
-  .on('end', () => {
-    console.log('CSV file parsed successfully.');
-  });
-  
-}
-
-// I'm just going to build up an array instead
-function get_unsynced_entries(path) {
+// Data entries are at path
+// When you finish accumulating unsynced entries, apply on_end
+function apply_to_unsynced_entries(path, on_end) {
   let unsynced = [];
 
   // Part of the problem is that its not pushing to unsynced properly
   // Part of the problem is that its not recognizing when something is unsynced
 
-  const lambda = (row) => {
-    console.log(row);
+  const on_data = (row) => {
+    //console.log(row);
 
     const unsync = (LAST_SYNC === null) || (moment(row.last_updated) > (LAST_SYNC));
     console.log('unsynced? '+unsync+' last sync was: '+LAST_SYNC);
@@ -67,23 +48,28 @@ function get_unsynced_entries(path) {
     }
 }
 
+  // This is async, need to write as functional
   fs.createReadStream(path)
   .pipe(csv())
-  .on('data', lambda)
+  .on('data', on_data)
   .on('end', () => {
+    on_end(unsynced)
     console.log('CSV file parsed successfully.');
   });
-
-  console.log('logging unsynced array: '+unsynced);
-  return unsynced;
 }
 
+
+
 // Testing, mimic server request, output to console
-// expect 6 new entires per pring
+// expect 3 new entires per ping
 const timer = 15*1000;
 setInterval(() => {
   console.log (" ____ ");
-  get_unsynced_entries('./data/water.csv');
+
+  apply_to_unsynced_entries('./data/water.csv', (unsynced) => {
+    console.log(unsynced);
+  });
+
   LAST_SYNC = moment();
 }, 
 timer);
@@ -109,6 +95,31 @@ timer);
 //     read_file(filePath);
 //   });
 // });
+
+
+
+function update_timestamps(unsynced) {
+  // Options for updating
+  // 1. Read CSV file into big array that lives in the script, perform all R/W there
+  // 2. Keep track of rows that need to be changed, copy/re-write the file in a second pass
+
+  fs.createReadStream(path)
+  .pipe(csv())
+  .on('data', (row) => {
+      if (unsynced.find(row)) {
+        // Write an updated row
+
+      }
+      else {
+        // Write the same row
+
+      }
+  })
+  .on('end', () => {
+    console.log('CSV file parsed successfully.');
+  });
+  
+}
 
 
 
