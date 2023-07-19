@@ -16,9 +16,9 @@ let LAST_SYNC = null;
 
 // Listens for a sync request from the cloud server
 app.get('/sync', (req, res) => {
-  // Find all data that is not syncd to the cloud
-  // Send that data to c-srv in res\
-  const filename = "water.csv"; //???
+  // Find all data that is not syncd to the cloud in water.csv
+  // Send that data to c-srv in res
+  const filename = "water.csv";
   const path = "./data/"+filename;
 
   const send_result = (unsynced) => {
@@ -29,8 +29,8 @@ app.get('/sync', (req, res) => {
 
 });
 
-// Data entries are at path
-// When you finish accumulating unsynced entries, apply on_end
+// path: Where the data entries we need to inspect are
+// on_end: lambda function to use when you finish accumulating unsynced entries
 function apply_to_unsynced_entries(path, on_end) {
   let unsynced = [];
 
@@ -39,22 +39,10 @@ function apply_to_unsynced_entries(path, on_end) {
   .pipe(csv())
   .on('data', 
     (row) => {
-
-    //   console.log(row);
-
-    // if (LAST_SYNC !== null) { //row lastupdated undefined?
-    //   console.log('Comparing: '+row.last_update+' to '+LAST_SYNC.toISOString());
-    // }
-    // else {
-    //   console.log('Comparing: '+row.last_update+' to null');
-    // }
-    
-    const unsync = (LAST_SYNC === null) || (moment(row.last_update) > (LAST_SYNC));
-    // console.log('Result: '+unsync);
-
-    if (unsync) { //If the data is unsynced by timestamp
-      unsynced.push(row);
-    }
+      const unsync = (LAST_SYNC === null) || (moment(row.last_update) > (LAST_SYNC));
+      if (unsync) { //If the data is unsynced by timestamp
+        unsynced.push(row);
+      }
   })
   .on('end', () => {
     on_end(unsynced)
@@ -65,24 +53,24 @@ function apply_to_unsynced_entries(path, on_end) {
 
 // Testing, mimic server request, output to console
 // expect 3 new entires per ping
-const timer = 15*1000;
-setInterval(() => {
-  console.log (" ____ ");
+// const timer = 15*1000;
+// setInterval(() => {
+//   console.log (" ____ ");
 
-  apply_to_unsynced_entries('./data/water.csv', 
-    (unsynced) => {
-      if (LAST_SYNC !== null) {
-        console.log(LAST_SYNC.toISOString());
-      }
-      else {
-        console.log("LAST_SYNC is null");
-      }
-      console.log(unsynced);
-      LAST_SYNC = moment();
-    });
+//   apply_to_unsynced_entries('./data/water.csv', 
+//     (unsynced) => {
+//       if (LAST_SYNC !== null) {
+//         console.log(LAST_SYNC.toISOString());
+//       }
+//       else {
+//         console.log("LAST_SYNC is null");
+//       }
+//       console.log(unsynced);
+//       LAST_SYNC = moment();
+//     });
 
-}, 
-timer);
+// }, 
+// timer);
 
 
 
@@ -108,28 +96,30 @@ timer);
 
 
 
-function update_timestamps(unsynced) {
-  // Options for updating
-  // 1. Read CSV file into big array that lives in the script, perform all R/W there
-  // 2. Keep track of rows that need to be changed, copy/re-write the file in a second pass
+// Don't need to keep individual timestamps on each entry as of right now
+// assume that when we sync, all data gets synced.
+// function update_timestamps(unsynced) {
+//   // Options for updating
+//   // 1. Read CSV file into big array that lives in the script, perform all R/W there
+//   // 2. Keep track of rows that need to be changed, copy/re-write the file in a second pass
 
-  fs.createReadStream(path)
-  .pipe(csv())
-  .on('data', (row) => {
-      if (unsynced.find(row)) {
-        // Write an updated row
+//   fs.createReadStream(path)
+//   .pipe(csv())
+//   .on('data', (row) => {
+//       if (unsynced.find(row)) {
+//         // Write an updated row
 
-      }
-      else {
-        // Write the same row
+//       }
+//       else {
+//         // Write the same row
 
-      }
-  })
-  .on('end', () => {
-    console.log('CSV file parsed successfully.');
-  });
+//       }
+//   })
+//   .on('end', () => {
+//     console.log('CSV file parsed successfully.');
+//   });
   
-}
+// }
 
 
 
