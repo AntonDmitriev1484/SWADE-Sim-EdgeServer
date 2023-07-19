@@ -50,6 +50,10 @@ function apply_to_unsynced_entries(path, on_end) {
   });
 }
 
+// Yeah its just not making it in here
+console.log('In server script');
+//Note: I think this server is just not starting for some reason
+app.listen(3000, () => {console.log('listen 3000')});
 
 // Testing, mimic server request, output to console
 // expect 3 new entires per ping

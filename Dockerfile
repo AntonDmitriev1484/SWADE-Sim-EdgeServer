@@ -17,5 +17,4 @@ WORKDIR /app/
 RUN npm install 
 # install everything in package.json
 
-RUN node RNG/rng.js
-CMD ["node", "src/index.js"]
+CMD ["npm", "start"]
