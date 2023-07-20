@@ -1,34 +1,24 @@
 import fs from "fs";
 import moment from "moment"
 
-// Generates random data and appends it to data/???.csv
-// Honestly I'm just going to start off with a completely blank file and append to it
+import pg from "pg"
+import zmq from "zmq"
+
+// Generates random data and writes it to a postgres instance
 // Generate one new row every 5 seconds
+
+// on docker swade-net, the database container will be pg
+const client = new Client({
+    host: 'pg',
+    port: 5432,
+    database: 'postgres',
+    user: 'postgres',
+    password: 'pass',
+  })
 
 const filename = "water.csv"; //???
 const path = "./data/"+filename;
 const timer = 1000*5; //5s
-
-const cols = ["a", "b", "c", "last_update"];
-// For what I'm doing now, last_sync can be a global variable
-// It doesn't have to be a field in the row
-// as we don't really care about the individual syncing / privacy policy on
-// each piece of data.
-// rather, we assume everything gets synced on a heartbeat
-
-export function init_file() {
-    
-    // Writes cols to the file
-    fs.writeFile(path, cols.join(',')+"\n", 
-        (err) => {
-            if (err) {
-                console.error('Error writing CSV file:', err);
-            return;
-            }
-                console.log('CSV file written successfully:', path);
-        });
-}
-
 
 // Just pop new numbers into this format
 function generate_rand_row() {
@@ -53,45 +43,8 @@ function generate_rand_row() {
 
 }
 
-
-init_file();
 // Write random data once every 5s
 setInterval(() => {
         generate_rand_row();
     }, 
 timer);
-
-
-// function count_cols() {
-//     let csv_cols = 0;
-
-//     fs.createReadStream(filePath)
-//     .pipe(csv())
-//     .on('headers', (headers) => {
-//         csv_cols++;
-//     })
-//     .on('error', (error) => {
-//         console.error('Error reading CSV file:', error);
-//     });
-
-//     return csv_cols;
-// }
-
-
-// Read in the format of one row in the CSV file
-// at present will just return the number of columns the CSV file has
-// function read_format() {
-//     let row_headers = [];
-
-//     fs.createReadStream(filePath)
-//     .pipe(csv())
-//     .on('headers', (headers) => {
-//         row_headers = headers;
-//     })
-//     .on('error', (error) => {
-//         console.error('Error reading CSV file:', error);
-//     });
-
-//     let size = row_headers.size(); //Find out how many fields there are
-
-// }
