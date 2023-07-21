@@ -44,7 +44,7 @@ app.post('/fwd-query', (req, res) => {
   // Get query string out of req
   // forward that query as a POST to c-srv
   // (don't necessarily need to forward, you could send it straight from the trigger)
-
+  console.log('Got signal from trigger');
 });
 
 // path: Where the data entries we need to inspect are
