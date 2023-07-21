@@ -4,7 +4,9 @@ import express from "express"
 import moment from "moment"
 
 import pg from "pg"
-//import zmq from "zmq"
+//import zmq from "zeromq"
+// importing (using) zmq segfaults my container! fun!
+// going to use google pub/sub instead
 
 const app = express();
 app.use(express.json());
@@ -17,6 +19,23 @@ const DB_URL = DB_HOST + ":" + DB_PORT + "/";
 const C_HOST = "http://c-srv";
 const C_PORT = 3000;
 const C_URL = C_HOST + ":" + C_PORT + "/";
+
+// We want multiple nodes to publish to the cloud server
+// this way c-srv can be a subscriber without having to
+// know about the urls of all edge servers
+
+const SOCK = zmq.socket("pub");
+SOCK.bindSync("tcp://"+C_HOST+":"+C_PORT);
+
+// const PUB = zmq.Publisher();
+// PUB.bind(C_URL);
+
+const timer = 1000;
+setInterval(() => {
+  console.log("Edge sending zmq message");
+  SOCK.send(["test", "Published a msg with ZMQ"]);
+}, 
+timer);
 
 let LAST_SYNC = null;
 
