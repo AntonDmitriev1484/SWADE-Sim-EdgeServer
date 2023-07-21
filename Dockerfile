@@ -1,4 +1,5 @@
-FROM node:19-alpine 
+FROM node:16-alpine
+# Downgrading from 19 -> 16 (more stable) fixed the python issue I was getting
 # Specify Linux OS to package
 
 EXPOSE 3000

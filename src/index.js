@@ -4,7 +4,7 @@ import express from "express"
 import moment from "moment"
 
 import pg from "pg"
-import zmq from "zmq"
+//import zmq from "zmq"
 
 const app = express();
 app.use(express.json());
@@ -37,6 +37,13 @@ app.get('/sync', (req, res) => {
   }
 
   apply_to_unsynced_entries(path, send_result);
+
+});
+
+app.post('/fwd-query', (req, res) => {
+  // Get query string out of req
+  // forward that query as a POST to c-srv
+  // (don't necessarily need to forward, you could send it straight from the trigger)
 
 });
 
