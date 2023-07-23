@@ -3,88 +3,61 @@ import fs from "fs"
 import express from "express"
 import moment from "moment"
 import zmq from "zeromq"
-
 import pg from "pg"
 import dns from "dns"
-//import zmq from "zeromq"
-// importing (using) zmq segfaults my container! fun!
-// going to use google pub/sub instead
+
+// Using version 6 (beta) ZMQ, Node version 14
 
 const app = express();
 app.use(express.json());
 
-const DB_HOST = "http://pg";
+const DB_HOST = "pg";
 const DB_PORT = 3000;
-const DB_URL = DB_HOST + ":" + DB_PORT + "/";
+const DB_URL = `http://${DB_HOST}:${DB_PORT}/`;
 
 const C_HOST = "http://c-srv";
 const C_PORT = 3000;
-const C_URL = C_HOST + ":" + C_PORT + "/";
+const C_URL = `http://${C_HOST}:${C_PORT}/`;
 
-const cloudContainerName = 'e-srv'; // Replace 'container2' with the actual container name
+let LAST_SYNC = null;
 
-// Use docker dns to figure out c-srvs ip
-// THIS IS ASYNC FUN FACT! Is it?
-// I think the solution is to nest
-await dns.lookup(cloudContainerName, (err, address, family) => {
+const SOCK = new zmq.Publisher
+const PUB_NAME = 'e-srv'; // Replace 'container2' with the actual container name
+
+// Find the publisher (this server's) ip
+dns.lookup(PUB_NAME, (err, address, family) => {
   if (err) {
-    console.error(`Error resolving IP address for ${containerName}:`, err);
+    console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
   } else {
-    console.log(`The IP address of ${cloudContainerName} is: ${address}`);
-    send_messages(address);
-    // ADDR = address; //Why is this 0
-    // console.log("address: "+address+" cloud ip "+ADDR);
-    // is it shadowing the variable? lexical scoping don't work good
+    console.log(`The IP address of ${PUB_NAME} is: ${address}`);
+    pub_messages_to(address, "test");
   }
 });
 
 
-async function send_messages(address) {
-  const socketAddr = "tcp://"+address+":5432"
-  //const socketAddr = "tcp://c-srv:3000"
-  const sock = new zmq.Publisher
+async function pub_messages_to(pub_address, topic) {
+  const socketAddr = "tcp://"+pub_address+":5432"
   try {
-    await sock.bind(socketAddr); //Swapping this to connect removes the error
-    console.log ("socket connected to "+socketAddr);
+    await SOCK.bind(socketAddr);
+    console.log ("Bound to socket "+socketAddr);
 
     while (true) {
       try {
-        await sock.send(["test", "meow!"])
-        console.log("sent a multipart message envelope")
+        await SOCK.send(["test", "meow!"]);
+        console.log("Sent MIME");
       }
       catch (err) {
-        console.log ("error sending MIME to cloud");
+        console.log ("Error sending MIME");
       }
       await new Promise(resolve => { setTimeout(resolve, 1000) })
     }
 
   }
   catch (err) {
-    console.log("error connecting socket", err)
+    console.log("error connecting SOCKet", err)
   }
 
-  //sock.connect("tcp://"+CLOUD_IP+":3000");
-
-
 }
-
-
-
-// OLD zmq syntax
-// const SOCK = zmq.socket("pub");
-// SOCK.bindSync("tcp://"+CLOUD_IP+":"+C_PORT);
-
-// // const PUB = zmq.Publisher();
-// // PUB.bind(C_URL);
-
-// const timer = 1000;
-// setInterval(() => {
-//   console.log("Edge sending zmq message");
-//   SOCK.send(["test", "Published a msg with ZMQ"]);
-// }, 
-// timer);
-
-let LAST_SYNC = null;
 
 
 // It seems the DB triggers act directly on the database
