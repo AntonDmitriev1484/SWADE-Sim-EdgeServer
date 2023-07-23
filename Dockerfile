@@ -1,4 +1,4 @@
-FROM node:16-alpine
+FROM node:14-alpine
 # Downgrading from 19 -> 16 (more stable) fixed the python issue I was getting
 # Specify Linux OS to package
 

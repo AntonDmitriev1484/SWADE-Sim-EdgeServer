@@ -21,36 +21,54 @@ const C_HOST = "http://c-srv";
 const C_PORT = 3000;
 const C_URL = C_HOST + ":" + C_PORT + "/";
 
-const cloudContainerName = 'c-srv'; // Replace 'container2' with the actual container name
-let CLOUD_IP = 0;
+const cloudContainerName = 'e-srv'; // Replace 'container2' with the actual container name
 
 // Use docker dns to figure out c-srvs ip
-// THIS IS ASYNC FUN FACT!
-dns.lookup(cloudContainerName, (err, address, family) => {
+// THIS IS ASYNC FUN FACT! Is it?
+// I think the solution is to nest
+await dns.lookup(cloudContainerName, (err, address, family) => {
   if (err) {
     console.error(`Error resolving IP address for ${containerName}:`, err);
   } else {
-    CLOUD_IP = address
     console.log(`The IP address of ${cloudContainerName} is: ${address}`);
+    send_messages(address);
+    // ADDR = address; //Why is this 0
+    // console.log("address: "+address+" cloud ip "+ADDR);
+    // is it shadowing the variable? lexical scoping don't work good
   }
 });
 
-// We want multiple nodes to publish to the cloud server
-// this way c-srv can be a subscriber without having to
-// know about the urls of all edge servers
 
-const sock = new zmq.Publisher
+async function send_messages(address) {
+  const socketAddr = "tcp://"+address+":5432"
+  //const socketAddr = "tcp://c-srv:3000"
+  const sock = new zmq.Publisher
+  try {
+    await sock.bind(socketAddr); //Swapping this to connect removes the error
+    console.log ("socket connected to "+socketAddr);
 
-await sock.bind("tcp://"+CLOUD_IP+":3000");
-//sock.connect("tcp://"+CLOUD_IP+":3000");
+    while (true) {
+      try {
+        await sock.send(["test", "meow!"])
+        console.log("sent a multipart message envelope")
+      }
+      catch (err) {
+        console.log ("error sending MIME to cloud");
+      }
+      await new Promise(resolve => { setTimeout(resolve, 1000) })
+    }
 
-console.log("Publisher bound to port 3000")
+  }
+  catch (err) {
+    console.log("error connecting socket", err)
+  }
 
-while (true) {
-  console.log("sending a multipart message envelope")
-  await sock.send(["test", "meow!"])
-  await new Promise(resolve => { setTimeout(resolve, 500) })
+  //sock.connect("tcp://"+CLOUD_IP+":3000");
+
+
 }
+
+
 
 // OLD zmq syntax
 // const SOCK = zmq.socket("pub");
@@ -116,7 +134,7 @@ function apply_to_unsynced_entries(path, on_end) {
   });
 }
 
-app.listen(3000);
+//app.listen(3000);
 
 
 
