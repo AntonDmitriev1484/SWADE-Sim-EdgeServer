@@ -24,6 +24,27 @@ let LAST_SYNC = null;
 const SOCK = new zmq.Publisher
 const PUB_NAME = 'e-srv'; // Replace 'container2' with the actual container name
 
+
+const DB_CLIENT = new pg.Client({
+  host: 'pg',
+  port: 5432,
+  database: 'postgres',
+  user: 'postgres',
+  password: 'pass',
+})
+
+await new Promise(res => setTimeout(res, 5000)); //Give pg adequat time to start (fix this later)
+
+// Connect client to Postgres instance
+DB_CLIENT.connect().then( x => {
+      console.log('Client connected to pg')
+  }
+)
+.catch( error => {
+      console.log('Error connecting client: '+error);
+  }
+);
+
 // Find the publisher (this server's) ip
 dns.lookup(PUB_NAME, (err, address, family) => {
   if (err) {
@@ -34,9 +55,8 @@ dns.lookup(PUB_NAME, (err, address, family) => {
   }
 });
 
-
 async function pub_messages_to(pub_address, topic) {
-  const socketAddr = "tcp://"+pub_address+":5432"
+  const socketAddr = "tcp://"+pub_address+":3001"
   try {
     await SOCK.bind(socketAddr);
     console.log ("Bound to socket "+socketAddr);
@@ -75,16 +95,25 @@ app.get('/sync', (req, res) => {
     LAST_SYNC = moment();
   }
 
-  apply_to_unsynced_entries(path, send_result);
+  //apply_to_unsynced_entries(path, send_result);
 
 });
 
-app.post('/fwd-query', (req, res) => {
-  // Get query string out of req
-  // forward that query as a POST to c-srv
-  // (don't necessarily need to forward, you could send it straight from the trigger)
-  console.log('Got signal from trigger');
-});
+app.post('/ingest-query', (req, res) => {
+
+  console.log('Received query!');
+  console.log(req.body.query);
+
+  res.send({message: "Query processed successfully!"});
+}
+);
+
+// app.post('/fwd-query', (req, res) => {
+//   // Get query string out of req
+//   // forward that query as a POST to c-srv
+//   // (don't necessarily need to forward, you could send it straight from the trigger)
+//   console.log('Got signal from trigger');
+// });
 
 // path: Where the data entries we need to inspect are
 // on_end: lambda function to use when you finish accumulating unsynced entries
@@ -107,7 +136,9 @@ function apply_to_unsynced_entries(path, on_end) {
   });
 }
 
-//app.listen(3000);
+app.listen(3000, () => {
+  console.log("E-srv listening on port 3000");
+});
 
 
 

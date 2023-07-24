@@ -1,5 +1,6 @@
 import fs from "fs";
 import moment from "moment"
+import  * as f from "../util/functions.js"
 
 import pg from "pg"
 //import zmq from "zmq"
@@ -8,50 +9,46 @@ import pg from "pg"
 // Generate one new row every 5 seconds
 
 // on docker swade-net, the database container will be pg
-const client = new pg.Client({
-    host: 'pg',
-    port: 5432,
-    database: 'postgres',
-    user: 'postgres',
-    password: 'pass',
-  })
 
+// I think it will ECONNECT REFUSE if this starts running to early before PG
 
-client.connect().then( x => {
-        console.log('Client connected to pg');
-        // Write random data once every 5s
-        setInterval(() => {
-            generate_rand_row_db();
-        }, 
-        timer);
-    }
-)
-.catch( error => {
-        console.log('Error connecting client: '+error);
-    }
-);
+const E_URL = "http://e-srv:3000";
 
 function generate_rand_row_db() {
     const LCLid = 'MAC000002';
     // postgres just didn't feel like making the LCLid col in the table definition
     // so I'm going to drop it for now
-    const querystr = `INSERT INTO rand (tstp, energy, last_updated, created_on) VALUES (NOW(), ${Math.random()}, NOW(), NOW());`
+    const querystr = `INSERT INTO rand (LCLid, tstp, energy, last_updated, created_on) VALUES (\'${LCLid}\', NOW(), ${Math.random()}, NOW(), NOW());`
     
-    client.query(querystr)
-    .then((res)=> {
-        console.log(querystr)
-    })
-    .catch((error)=> {
-        console.log('Error on insert');
-        console.log(error);
-    }
-    )
+    // We will assume that all clients pass queries to their database through my software
+    // by making API calls to e-srv:
+    // So, this random query will be passed through a fetch request to e-srv
 
+    
+    f.HOFetch(E_URL+"/ingest-query", 
+    {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: 
+            JSON.stringify({"query": querystr})
+    },
+    (res) => {
+        console.log(res.message);
+    });
+    
 }
+
+
 
 const filename = "water.csv"; //???
 const path = "./data/"+filename;
 const timer = 1000*5; //5s
+
+setInterval(() => {generate_rand_row_db()}, timer );
+
 // Just pop new numbers into this format
 function generate_rand_row_CSV() {
 
