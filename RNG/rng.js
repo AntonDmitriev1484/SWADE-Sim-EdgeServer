@@ -18,8 +18,8 @@ function generate_rand_row_db() {
     const LCLid = 'MAC000002';
     // postgres just didn't feel like making the LCLid col in the table definition
     // so I'm going to drop it for now
-    const querystr = `INSERT INTO rand (LCLid, tstp, energy, last_updated, created_on) VALUES (\'${LCLid}\', NOW(), ${Math.random()}, NOW(), NOW());`
-    
+    const querystr = `INSERT INTO rand (LCLid, tstp, energy, last_updated, created_on) VALUES ('${LCLid}', NOW(), ${Math.random()}, NOW(), NOW());`
+
     // We will assume that all clients pass queries to their database through my software
     // by making API calls to e-srv:
     // So, this random query will be passed through a fetch request to e-srv

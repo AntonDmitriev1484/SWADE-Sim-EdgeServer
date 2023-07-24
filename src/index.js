@@ -51,7 +51,7 @@ function init_query_endpoints() {
 // Try connecting until the server becomes available
 DB_CLIENT.connect().then( x => {
       console.log('Client connected to pg')
-      init_query_endpoints();
+      //init_query_endpoints();
   }
 )
 .catch( error => {
@@ -65,18 +65,36 @@ dns.lookup(PUB_NAME, (err, address, family) => {
     console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
   } else {
     console.log(`The IP address of ${PUB_NAME} is: ${address}`);
-    // pub_messages_to(address, "test");
+
+    //Basically just wraps socket.bind() & socket.send()?
+    //At some point, maybe we should expand this to also do the database storage?
+    //We should only pub if we sent to database successfully
+
     build_pub_function(address)
     .then(
-      (pub_function) => {
+      (pub) => {
       app.post('/query-ingestor', (req, res) => {
 
         console.log('Received query!');
         console.log(req.body.query);
   
-        pub_function("Test", req.body.query);
+        pub("Test", req.body.query)
+        .then( x => {
+          res.send({message: "Query sent to cloud successfully!"});
+        })
+        .catch(err => {
+          res.send({message: "Query send to cloud failed!"});
+        })
+
+        // Really we want query to occur before pub.
+        // Merge these two into one ordered pipeline later
+        DB_CLIENT.query(req.body.query)
+        .then(x => {
+          console.log('Query applied to edge postgress successfully!');
+        }).catch(err => {
+          console.log('Query failed on edge postgress: '+err);
+        })
       
-        res.send({message: "Query processed successfully!"});
       }
       );
     }).catch();
@@ -98,12 +116,7 @@ async function build_pub_function(pub_address) {
  
       const pub_function = 
       async (topic, message) => {
-          try {
-            await SOCK.send([topic, message]);
-          }
-          catch (err) {
-            console.log ("Error sending MIME");
-          }
+          SOCK.send([topic, message]);
       }
 
        return pub_function;
