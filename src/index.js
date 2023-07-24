@@ -11,37 +11,51 @@ import dns from "dns"
 const app = express();
 app.use(express.json());
 
+const PG_PORT = 5432;
+const EXPRESS_PORT = 3000;
+const ZMQ_PORT = 3001;
+
 const DB_HOST = "pg";
-const DB_PORT = 3000;
-const DB_URL = `http://${DB_HOST}:${DB_PORT}/`;
+const C_HOST = "c-srv";
 
-const C_HOST = "http://c-srv";
-const C_PORT = 3000;
-const C_URL = `http://${C_HOST}:${C_PORT}/`;
-
-let LAST_SYNC = null;
-
-const SOCK = new zmq.Publisher
 const PUB_NAME = 'e-srv'; // Replace 'container2' with the actual container name
 
+const SOCK = new zmq.Publisher
 
 const DB_CLIENT = new pg.Client({
   host: 'pg',
-  port: 5432,
+  port: PG_PORT,
   database: 'postgres',
   user: 'postgres',
   password: 'pass',
 })
 
-await new Promise(res => setTimeout(res, 5000)); //Give pg adequat time to start (fix this later)
+await new Promise(res => setTimeout(res, 5000)); 
+// Give pg enough time to start
+// Write a connect with retry loop around DB_CLIENT.connect()
 
+function init_query_endpoints() {
+  //Only initialize query endpoints once PG is set up
+  app.post('/query-ingestor', (req, res) => {
+
+    console.log('Received query!');
+    console.log(req.body.query);
+  
+    res.send({message: "Query processed successfully!"});
+  }
+  );
+}
+
+// Repeatedly try to connect
 // Connect client to Postgres instance
+// Try connecting until the server becomes available
 DB_CLIENT.connect().then( x => {
       console.log('Client connected to pg')
+      init_query_endpoints();
   }
 )
 .catch( error => {
-      console.log('Error connecting client: '+error);
+      console.log('Error connecting to pg: '+error);
   }
 );
 
@@ -51,12 +65,64 @@ dns.lookup(PUB_NAME, (err, address, family) => {
     console.error(`Error resolving IP address for ${PUB_NAME}:`, err);
   } else {
     console.log(`The IP address of ${PUB_NAME} is: ${address}`);
-    pub_messages_to(address, "test");
+    // pub_messages_to(address, "test");
+    build_pub_function(address)
+    .then(
+      (pub_function) => {
+      app.post('/query-ingestor', (req, res) => {
+
+        console.log('Received query!');
+        console.log(req.body.query);
+  
+        pub_function("Test", req.body.query);
+      
+        res.send({message: "Query processed successfully!"});
+      }
+      );
+    }).catch();
+
+    // Only on DB Connect AND DNS Lookup, is when we can set up our query ingestor endpoint.
+
   }
 });
 
+async function build_pub_function(pub_address) {
+  // Curried function, generates a pub_message function.
+  // Any (topic, message) passed to this function will publish to
+  // the socket bound to pub_address
+
+  const socketAddr = "tcp://"+pub_address+":"+ZMQ_PORT;
+    try {
+      await SOCK.bind(socketAddr);
+      console.log ("Bound to socket "+socketAddr);
+ 
+      const pub_function = 
+      async (topic, message) => {
+          try {
+            await SOCK.send([topic, message]);
+          }
+          catch (err) {
+            console.log ("Error sending MIME");
+          }
+      }
+
+       return pub_function;
+
+    }
+    catch (err) {
+      console.log("error connecting SOCKet", err)
+    }
+
+}
+
+
+app.listen(EXPRESS_PORT, () => {
+  console.log("E-srv listening on port 3000");
+});
+
+
 async function pub_messages_to(pub_address, topic) {
-  const socketAddr = "tcp://"+pub_address+":3001"
+  const socketAddr = "tcp://"+pub_address+":"+ZMQ_PORT;
   try {
     await SOCK.bind(socketAddr);
     console.log ("Bound to socket "+socketAddr);
@@ -78,67 +144,6 @@ async function pub_messages_to(pub_address, topic) {
   }
 
 }
-
-
-// It seems the DB triggers act directly on the database
-// maybe I can get them to invoke a function on an e-srv REST API.
-
-// Listens for a sync request from the cloud server
-app.get('/sync', (req, res) => {
-  // Find all data that is not syncd to the cloud in water.csv
-  // Send that data to c-srv in res
-  const filename = "water.csv";
-  const path = "./data/"+filename;
-
-  const send_result = (unsynced) => {
-    res.send(unsynced);
-    LAST_SYNC = moment();
-  }
-
-  //apply_to_unsynced_entries(path, send_result);
-
-});
-
-app.post('/ingest-query', (req, res) => {
-
-  console.log('Received query!');
-  console.log(req.body.query);
-
-  res.send({message: "Query processed successfully!"});
-}
-);
-
-// app.post('/fwd-query', (req, res) => {
-//   // Get query string out of req
-//   // forward that query as a POST to c-srv
-//   // (don't necessarily need to forward, you could send it straight from the trigger)
-//   console.log('Got signal from trigger');
-// });
-
-// path: Where the data entries we need to inspect are
-// on_end: lambda function to use when you finish accumulating unsynced entries
-function apply_to_unsynced_entries(path, on_end) {
-  let unsynced = [];
-
-  // This is async, need to write as functional
-  fs.createReadStream(path)
-  .pipe(csv())
-  .on('data', 
-    (row) => {
-      const unsync = (LAST_SYNC === null) || (moment(row.last_update) > (LAST_SYNC));
-      if (unsync) { //If the data is unsynced by timestamp
-        unsynced.push(row);
-      }
-  })
-  .on('end', () => {
-    on_end(unsynced)
-    console.log('CSV file parsed successfully.');
-  });
-}
-
-app.listen(3000, () => {
-  console.log("E-srv listening on port 3000");
-});
 
 
 
