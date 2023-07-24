@@ -20,6 +20,7 @@ const C_HOST = "c-srv";
 
 const PUB_NAME = 'e-srv'; // Replace 'container2' with the actual container name
 
+
 const SOCK = new zmq.Publisher
 
 const DB_CLIENT = new pg.Client({
@@ -77,7 +78,11 @@ dns.lookup(PUB_NAME, (err, address, family) => {
 
         console.log('Received query!');
         console.log(req.body.query);
+
+        // Really we want query to occur before pub.
+        // Merge these two into one ordered pipeline later
   
+        // Query interception + send
         pub("Test", req.body.query)
         .then( x => {
           res.send({message: "Query sent to cloud successfully!"});
@@ -86,13 +91,12 @@ dns.lookup(PUB_NAME, (err, address, family) => {
           res.send({message: "Query send to cloud failed!"});
         })
 
-        // Really we want query to occur before pub.
-        // Merge these two into one ordered pipeline later
+        // Query application
         DB_CLIENT.query(req.body.query)
         .then(x => {
-          console.log('Query applied to edge postgress successfully!');
+          console.log('Query applied to edge postgres successfully!');
         }).catch(err => {
-          console.log('Query failed on edge postgress: '+err);
+          console.log('Query failed on edge postgres: '+err);
         })
       
       }
