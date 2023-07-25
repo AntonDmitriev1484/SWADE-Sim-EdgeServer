@@ -5,6 +5,7 @@ import moment from "moment"
 import zmq from "zeromq"
 import pg from "pg"
 import dns from "dns"
+import * as f from "../util/functions.js"
 
 // Using version 6 (beta) ZMQ, Node version 14
 
@@ -73,33 +74,50 @@ dns.lookup(PUB_NAME, (err, address, family) => {
     build_pub_function(address)
     .then(
       (pub) => {
-      app.post('/query-ingestor', (req, res) => {
 
-        console.log('Received query!');
-        console.log(req.body.query);
+        console.log('Registering edge server with cloud');
+        // Register edge server with cloud server
+        f.HOFetch(`http://${C_HOST}:3000/register`,
+        {
+          method: 'GET',
+          headers: {
+              "accept": "application/json",
+              "content-type": "application/json"
+          }
+        },
+        res => {
+          console.log(res.message);
+        }
+        )
 
-        // Really we want query to occur before pub.
-        // Merge these two into one ordered pipeline later
-  
-        // Query interception + send
-        pub("Test", req.body.query)
-        .then( x => {
-          res.send({message: "Query sent to cloud successfully!"});
-        })
-        .catch(err => {
-          res.send({message: "Query send to cloud failed!"});
-        })
+        app.post('/query-ingestor', (req, res) => {
 
-        // Query application
-        DB_CLIENT.query(req.body.query)
-        .then(x => {
-          console.log('Query applied to edge postgres successfully!');
-        }).catch(err => {
-          console.log('Query failed on edge postgres: '+err);
-        })
-      
-      }
-      );
+          console.log('Received query!');
+          console.log(req.body.query);
+
+          // Really we want query to occur before pub.
+          // Merge these two into one ordered pipeline later
+    
+          // Query interception + send
+          pub("Test", req.body.query)
+          .then( x => {
+            res.send({message: "Query sent to cloud successfully!"});
+          })
+          .catch(err => {
+            res.send({message: "Query send to cloud failed!"});
+          })
+
+          // Query application
+          DB_CLIENT.query(req.body.query)
+          .then(x => {
+            console.log('Query applied to edge postgres successfully!');
+          }).catch(err => {
+            console.log('Query failed on edge postgres: '+err);
+          })
+        
+        }
+        );
+
     }).catch();
 
     // Only on DB Connect AND DNS Lookup, is when we can set up our query ingestor endpoint.
