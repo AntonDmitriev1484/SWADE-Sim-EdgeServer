@@ -18,8 +18,7 @@ const ZMQ_PORT = 3001;
 const DB_HOST = "pg";
 const C_HOST = "c-srv";
 
-const PUB_NAME = 'e-srv'; // Replace 'container2' with the actual container name
-
+const PUB_NAME = 'e-srv1'; // Must be the alias for e-srv on swade-net
 
 const SOCK = new zmq.Publisher
 
