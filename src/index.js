@@ -19,7 +19,9 @@ const ZMQ_PORT = 3001;
 const DB_HOST = "pg";
 const C_HOST = "c-srv";
 
-const PUB_NAME = 'e-srv1'; // Must be the alias for e-srv on swade-net
+// THIS WAS e-srv1 before!
+const PUB_NAME = `e-srv${process.env.EDGE_ID}`; // Must be the alias for e-srv on swade-net
+// PUB_NAME is not necessarily going to be e-srv1
 
 const SOCK = new zmq.Publisher
 
@@ -60,6 +62,59 @@ DB_CLIENT.connect().then( x => {
   }
 );
 
+console.log('Registering edge server with cloud');
+// Register edge server with cloud server
+f.HOFetch(`http://${C_HOST}:3000/register`,
+{
+  method: 'GET',
+  headers: {
+      "accept": "application/json",
+      "content-type": "application/json"
+  }
+},
+response => {
+  // Super janky solution. Fix later.
+  // Basically on register, cloud server tells the edge server what its swade-net ip is in the response
+  // then we bind the tcp port with that address instead of what DNS.lookup was providing (edge-net-n) address
+  build_pub_function(response.swadenetIP)
+    .then(
+      (pub) => {
+
+        app.post('/query-ingestor', (req, res) => {
+
+          console.log('Received query!');
+          console.log(req.body.query);
+
+          // Really we want query to occur before pub.
+          // Merge these two into one ordered pipeline later
+    
+          // Query interception + send
+          pub("Test", req.body.query)
+          .then( x => {
+            res.send({message: "Query sent to cloud successfully!"});
+          })
+          .catch(err => {
+            res.send({message: "Query send to cloud failed!"});
+          })
+
+          // Query application
+          DB_CLIENT.query(req.body.query)
+          .then(x => {
+            console.log('Query applied to edge postgres successfully!');
+          }).catch(err => {
+            console.log('Query failed on edge postgres: '+err);
+          })
+        
+        }
+        );
+
+    }).catch();
+
+    // Only on DB Connect AND DNS Lookup, is when we can set up our query ingestor endpoint.
+}
+)
+
+/*
 // Find the publisher (this server's) ip
 dns.lookup(PUB_NAME, (err, address, family) => {
   if (err) {
@@ -70,6 +125,10 @@ dns.lookup(PUB_NAME, (err, address, family) => {
     //Basically just wraps socket.bind() & socket.send()?
     //At some point, maybe we should expand this to also do the database storage?
     //We should only pub if we sent to database successfully
+
+    // Here the address we're finding is the edge-net address
+    // we might need it to bind to the swade-net address
+    // The server is being properly registered to the cloud server with its swade-net address
 
     build_pub_function(address)
     .then(
@@ -124,7 +183,7 @@ dns.lookup(PUB_NAME, (err, address, family) => {
 
   }
 });
-
+*/
 async function build_pub_function(pub_address) {
   // Curried function, generates a pub_message function.
   // Any (topic, message) passed to this function will publish to
@@ -182,3 +241,5 @@ async function pub_messages_to(pub_address, topic) {
 
 
 
+// docker network rm test-postgres-sync_edge-net1, test-postgres-sync_edge-net2, test-postgres-sync_repo-net, test-postgres-sync_swade-net
+// or maybe just remove all of them lol

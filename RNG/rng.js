@@ -23,6 +23,7 @@ function generate_rand_row_db() {
     // We will assume that all clients pass queries to their database through my software
     // by making API calls to e-srv:
     // So, this random query will be passed through a fetch request to e-srv
+    // Now this is giving a silly little DNS error
     f.HOFetch("http://e-srv:"+EXPRESS_PORT+"/query-ingestor", 
     {
         method: 'POST',
