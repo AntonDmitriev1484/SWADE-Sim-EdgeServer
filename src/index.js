@@ -26,7 +26,7 @@ const PUB_NAME = `e-srv${process.env.EDGE_ID}`; // Must be the alias for e-srv o
 const SOCK = new zmq.Publisher
 
 const DB_CLIENT = new pg.Client({
-  host: 'pg',
+  host: `pg${process.env.EDGE_ID}`,
   port: PG_PORT,
   database: 'postgres',
   user: 'postgres',
