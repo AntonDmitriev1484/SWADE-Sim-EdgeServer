@@ -65,7 +65,7 @@ async function cloud_registration() {
           },
           {
             "name": "file_upload",
-            "bucket": `e-srv${EDGE_ID}`
+            "bucket": `e-srv${process.env.EDGE_ID}`
           }
       ]
       })
@@ -141,7 +141,6 @@ init_connections()
 
   console.log('All initialization promises resolved!');
 
-  console.log("Cloud registration response: "+values[1].message); // Cloud registration response
   const pub = values[2]; // Grab our publisher function
 
   app.post('/query-ingestor', (req, res) => {
@@ -174,7 +173,7 @@ init_connections()
 
   // setInterval(() => {
   //   pub("file_upload", {
-  //     "bucket": `e-srv${EDGE_ID}`,
+  //     "bucket": `e-srv${process.env.EDGE_ID}`,
   //     "path": `test/test.csv`,
   //     "file": "TEMP"
   //   })
