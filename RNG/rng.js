@@ -41,4 +41,4 @@ function generate_rand_row_db() {
     
 }
 
-setInterval(() => {generate_rand_row_db()}, TIMER );
+//setInterval(() => {generate_rand_row_db()}, TIMER );

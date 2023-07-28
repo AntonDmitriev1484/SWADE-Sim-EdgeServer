@@ -16,10 +16,8 @@ app.use(express.json());
 const PG_PORT = 5432;
 const EXPRESS_PORT = 3000;
 const ZMQ_PORT = 3001;
-
 const DB_HOST = "pg";
 const C_HOST = "c-srv";
-
 const PUB_NAME = `e-srv${process.env.EDGE_ID}`;
 
 const SOCK = new zmq.Publisher
@@ -54,12 +52,26 @@ async function cloud_registration() {
   await new Promise(res => setTimeout(res, 5000)); 
   return fetch(`http://${C_HOST}:3000/register`,
   {
-    method: 'GET',
+    method: 'POST',
     headers: {
         "accept": "application/json",
         "content-type": "application/json"
-    }
+    },
+    body:
+      JSON.stringify({
+        "topics": [
+          {
+            "name": "live_data"
+          },
+          {
+            "name": "file_upload",
+            "bucket": `e-srv${EDGE_ID}`
+          }
+      ]
+      })
   });
+
+  // For now, the edge server will register to both topics
 
 }
 
@@ -83,6 +95,7 @@ async function build_publisher() {
     // Resolution case
     const address = await lookupPromise;
     console.log(`This server is at address: ${address}`);
+    // Return a promise to build a publisher function
     return build_pub_function(address);
   }
   catch (err) {
@@ -123,10 +136,12 @@ async function init_connections() {
 }
 
 
-try {
-  let values = await init_connections();
+init_connections()
+.then( values => {
+
   console.log('All initialization promises resolved!');
 
+  console.log("Cloud registration response: "+values[1].message); // Cloud registration response
   const pub = values[2]; // Grab our publisher function
 
   app.post('/query-ingestor', (req, res) => {
@@ -140,7 +155,9 @@ try {
 
         console.log('Query applied to edge postgres successfully!');
 
-        pub("Test", req.body.query)
+        pub("live_data", {
+          "query": req.body.query
+        })
         .then( x => {
           res.send({message: "Query sent to cloud successfully!"});
         })
@@ -154,10 +171,19 @@ try {
   
   }
   );
-}
-catch (err) {
+
+  // setInterval(() => {
+  //   pub("file_upload", {
+  //     "bucket": `e-srv${EDGE_ID}`,
+  //     "path": `test/test.csv`,
+  //     "file": "TEMP"
+  //   })
+  // }, 5000);
+
+})
+.catch( err => {
   console.log(`Problem initializing edge server connections: ${err}`);
-}
+});
 
 
 app.listen(EXPRESS_PORT, () => {
