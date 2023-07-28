@@ -20,7 +20,11 @@ const DB_HOST = "pg";
 const C_HOST = "c-srv";
 const PUB_NAME = `e-srv${process.env.EDGE_ID}`;
 
-const SOCK = new zmq.Publisher
+const SOCK = new zmq.Publisher({
+  sendHighWaterMark: 1,
+  sendTimeout: 0,
+  heartbeatInterval: 10000,
+});
 
 const DB_CLIENT = new pg.Client({
   host: `pg${process.env.EDGE_ID}`,
@@ -171,13 +175,34 @@ init_connections()
   }
   );
 
-  // setInterval(() => {
-  //   pub("file_upload", {
-  //     "bucket": `e-srv${process.env.EDGE_ID}`,
-  //     "path": `test/test.csv`,
-  //     "file": "TEMP"
-  //   })
-  // }, 5000);
+  setInterval(() => {
+
+    const filename = 'MAC000002.csv';
+    const path = 'data/'+filename;
+
+    // ZMQ socket was getting overwhelmed by databeing sent too fast;
+    // this fixed it: https://github.com/zeromq/zeromq.js/issues/427
+    // don't ask me why
+    fs.createReadStream(path)
+    .pipe(csv())
+    .on('data', async (row) => {
+      await new Promise(res => setTimeout(res, 100));
+      pub("file_upload", JSON.stringify({
+        "bucket": `e-srv${process.env.EDGE_ID}`,
+        "path": `test/${filename}`,
+        "chunk": row
+      }))
+    })
+    .on('end', () => {
+      // When chunk is null, the cloud server will know to stop writing
+      pub("file_upload", {
+        "bucket": `e-srv${process.env.EDGE_ID}`,
+        "path": `test/${filename}`,
+        "chunk": null
+      })
+    });
+
+  }, 5000);
 
 })
 .catch( err => {
