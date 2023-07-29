@@ -158,9 +158,9 @@ init_connections()
 
         console.log('Query applied to edge postgres successfully!');
 
-        pub("live_data", {
+        pub("live_data", JSON.stringify({
           "query": req.body.query
-        })
+        }))
         .then( x => {
           res.send({message: "Query sent to cloud successfully!"});
         })
@@ -195,11 +195,11 @@ init_connections()
     })
     .on('end', () => {
       // When chunk is null, the cloud server will know to stop writing
-      pub("file_upload", {
+      pub("file_upload", JSON.stringify({
         "bucket": `e-srv${process.env.EDGE_ID}`,
         "path": `test/${filename}`,
         "chunk": null
-      })
+      }))
     });
 
   }, 5000);
