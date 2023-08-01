@@ -23,8 +23,12 @@ const PUB_NAME = `e-srv${process.env.EDGE_ID}`;
 const SOCK = new zmq.Publisher({
   sendHighWaterMark: 1,
   sendTimeout: 0,
-  heartbeatInterval: 10000,
+  //heartbeatInterval: 10000, //It would only read off messages that were async at certain heartbeats
+                              // So the 10s heartbeat interval would have been bottlenecking the number of lines sent?
+  heartbeatInterval: 0
 });
+
+// Honestly I think the solution might just be to figure out a good chunking threshold
 
 const DB_CLIENT = new pg.Client({
   host: `pg${process.env.EDGE_ID}`,
@@ -111,7 +115,6 @@ async function build_publisher() {
 // Asynchronously bind a socket into a publisher function
 // We will later use this publisher function
 async function build_pub_function(pub_address) {
-
   // Curried function, generates a pub_message function.
   // Any (topic, message) passed to this function will publish to
   // the socket bound to pub_address
@@ -175,34 +178,68 @@ init_connections()
   }
   );
 
-  setInterval(() => {
+  // setInterval(() => {
 
-    const filename = 'MAC000002.csv';
+     const filename = 'MAC000002.csv';
+    //const filename = 'water.csv';
     const path = 'data/'+filename;
 
-    // ZMQ socket was getting overwhelmed by databeing sent too fast;
+    // ZMQ socket was getting overwhelmed by data being sent too fast;
     // this fixed it: https://github.com/zeromq/zeromq.js/issues/427
     // don't ask me why
+
+    // Header message
+    // Chunk message (1000 lines) -> later tune to size (bytes)
+    // End message
+
+    let COUNT = 0; // Number of lines read from file
+    const CHUNK_SIZE = 1000;
+    let CHUNKS_READ = 1;
+    let CHUNK = [];
+
     fs.createReadStream(path)
     .pipe(csv())
-    .on('data', async (row) => {
-      await new Promise(res => setTimeout(res, 100));
+    .on('headers', (headers) => {
+      // Yes, headers get published before any data does
       pub("file_upload", JSON.stringify({
         "bucket": `e-srv${process.env.EDGE_ID}`,
         "path": `test/${filename}`,
-        "chunk": row
+        "chunk": headers
       }))
+    })
+    .on('data', (row) => {
+      COUNT++;
+      CHUNK.push(row); //row is a JSON here
+
+      if (COUNT >= CHUNKS_READ*CHUNK_SIZE) {
+        pub("file_upload", JSON.stringify({
+          "bucket": `e-srv${process.env.EDGE_ID}`,
+          "path": `test/${filename}`,
+          "chunk": CHUNK
+        }))
+        CHUNK = [];
+        CHUNKS_READ ++;
+      }
     })
     .on('end', () => {
       // When chunk is null, the cloud server will know to stop writing
+      console.log(` Edge wrote: ${COUNT} lines, ${CHUNKS_READ} chunks.`);
+      COUNT = 0;
+      CHUNKS_READ = 0;
+      CHUNK.push(null);
+
+      // Publish the final chunk
       pub("file_upload", JSON.stringify({
         "bucket": `e-srv${process.env.EDGE_ID}`,
         "path": `test/${filename}`,
-        "chunk": null
+        "chunk": CHUNK
       }))
+
+      CHUNK = [];
+
     });
 
-  }, 5000);
+  //}, 5000);
 
 })
 .catch( err => {
