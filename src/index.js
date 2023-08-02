@@ -178,43 +178,32 @@ init_connections()
   }
   );
 
-  // setInterval(() => {
-
-     const filename = 'MAC000002.csv';
-    //const filename = 'water.csv';
-    const path = 'data/'+filename;
-
-    // ZMQ socket was getting overwhelmed by data being sent too fast;
-    // this fixed it: https://github.com/zeromq/zeromq.js/issues/427
-    // don't ask me why
-
-    // Header message
-    // Chunk message (1000 lines) -> later tune to size (bytes)
-    // End message
-
-    let COUNT = 0; // Number of lines read from file
+    const filename = process.env.TEST_FILE;
+    const path = 'data/'+filename; // Path to file on edge machine
     const CHUNK_SIZE = 1000;
+    let COUNT = 0; // Number of lines read from file
     let CHUNKS_READ = 1;
     let CHUNK = [];
+    // Request holds path where this file will be stored on cloud filesystem
 
     fs.createReadStream(path)
     .pipe(csv())
     .on('headers', (headers) => {
-      // Yes, headers get published before any data does
       pub("file_upload", JSON.stringify({
         "bucket": `e-srv${process.env.EDGE_ID}`,
-        "path": `test/${filename}`,
+        "path": `test/`,
+        "filename": `${filename}`,
         "chunk": headers
       }))
     })
     .on('data', (row) => {
       COUNT++;
       CHUNK.push(row); //row is a JSON here
-
       if (COUNT >= CHUNKS_READ*CHUNK_SIZE) {
         pub("file_upload", JSON.stringify({
           "bucket": `e-srv${process.env.EDGE_ID}`,
-          "path": `test/${filename}`,
+          "path": `test/`,
+          "filename": `${filename}`,
           "chunk": CHUNK
         }))
         CHUNK = [];
@@ -227,19 +216,15 @@ init_connections()
       COUNT = 0;
       CHUNKS_READ = 0;
       CHUNK.push(null);
-
       // Publish the final chunk
       pub("file_upload", JSON.stringify({
         "bucket": `e-srv${process.env.EDGE_ID}`,
-        "path": `test/${filename}`,
+        "path": `test/`,
+        "filename": `${filename}`,
         "chunk": CHUNK
       }))
-
       CHUNK = [];
-
     });
-
-  //}, 5000);
 
 })
 .catch( err => {
