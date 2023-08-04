@@ -19,12 +19,11 @@ const ZMQ_PORT = 3001;
 const DB_HOST = "pg";
 const C_HOST = "c-srv";
 const PUB_NAME = `e-srv${process.env.EDGE_ID}`;
+const USER = { username: process.env.USERNAME};
 
 const SOCK = new zmq.Publisher({
   sendHighWaterMark: 1,
   sendTimeout: 0,
-  //heartbeatInterval: 10000, //It would only read off messages that were async at certain heartbeats
-                              // So the 10s heartbeat interval would have been bottlenecking the number of lines sent?
   heartbeatInterval: 0
 });
 
@@ -125,6 +124,7 @@ async function build_pub_function(pub_address) {
  
       const pub_function = 
       async (topic, message) => {
+          message["user"] = USER; // NOTICE: user object always gets added into any message!
           SOCK.send([topic, message]);
       }
 
