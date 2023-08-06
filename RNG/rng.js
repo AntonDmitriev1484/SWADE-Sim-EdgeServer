@@ -38,7 +38,31 @@ function simulate_local_write_to_edge() {
     });
 }
 
-setTimeout(simulate_local_write_to_edge, 6000);
+function simulate_cloud_write_to_edge() {
+
+    // Client will read files out of mock-client-data and local write them to data through the e-srv API
+
+    const file = fs.createReadStream(`mock-client-data/${process.env.TEST_FILE}`);
+    const filename = process.env.TEST_FILE;
+    const formData = new FormData();
+
+    formData.append('filename', filename);
+    formData.append('file', file); //Automatically deals with size
+
+    const og = "e-srv"+process.env.EDGE_ID;
+    f.HOFetch(`http://${og}:${EXPRESS_PORT}/cloud-write`, 
+    {
+        method: 'POST',
+        headers: {
+        },
+        body: formData
+    },
+    (res) => {
+        console.log(res.message);
+    });
+}
+
+setTimeout(simulate_cloud_write_to_edge, 6000);
 
 function generate_rand_row_db() {
     const LCLid = 'MAC000002';

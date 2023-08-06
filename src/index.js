@@ -154,7 +154,7 @@ async function build_pub_function(pub_address) {
  
       const pub_function = 
       async (topic, message) => {
-          message["user"] = USER; // NOTICE: user object always gets added into any message!
+          //message["user"] = USER; // NOTICE: user object always gets added into any message!
           SOCK.send([topic, message]);
       }
 
@@ -182,6 +182,56 @@ init_connections()
   console.log('All initialization promises resolved!');
 
   const pub = values[2]; // Grab our publisher function
+
+  function pub_csv_cloud(path, filename) {
+      const CHUNK_SIZE = 1000;
+      let COUNT = 0; // Number of lines read from file
+      let CHUNKS_READ = 1;
+      let CHUNK = [];
+      // Request holds path where this file will be stored on cloud filesystem
+      fs.createReadStream(path)
+      .pipe(csv())
+      .on('headers', (headers) => {
+        pub("file_upload", JSON.stringify({
+          "user": USER,
+          "bucket": `e-srv${process.env.EDGE_ID}`,
+          "path": `test/`,
+          "filename": `${filename}`,
+          "chunk": headers
+        }))
+      })
+      .on('data', (row) => {
+        COUNT++;
+        CHUNK.push(row); //row is a JSON here
+        if (COUNT >= CHUNKS_READ*CHUNK_SIZE) {
+          pub("file_upload", JSON.stringify({
+            "user": USER,
+            "bucket": `e-srv${process.env.EDGE_ID}`,
+            "path": `test/`,
+            "filename": `${filename}`,
+            "chunk": CHUNK
+          }))
+          CHUNK = [];
+          CHUNKS_READ ++;
+        }
+      })
+      .on('end', () => {
+        // When chunk is null, the cloud server will know to stop writing
+        console.log(` Edge wrote: ${COUNT} lines, ${CHUNKS_READ} chunks.`);
+        COUNT = 0;
+        CHUNKS_READ = 0;
+        CHUNK.push(null);
+        // Publish the final chunk
+        pub("file_upload", JSON.stringify({
+          "user": USER,
+          "bucket": `e-srv${process.env.EDGE_ID}`,
+          "path": `test/`,
+          "filename": `${filename}`,
+          "chunk": CHUNK
+        }))
+        CHUNK = [];
+      });
+  }
 
   app.post('/query-ingestor', (req, res) => {
 
@@ -215,9 +265,10 @@ init_connections()
     // Multer middleware handles writing local file and local metadata file.
   });
 
-  app.post('/cloud-write', (req, res) => {
-    write_csv_local_metadata();
-    pub_csv_cloud();
+  app.post('/cloud-write', upload.single('file'), (req, res) => {
+    // Multer middleware handles writing local file and local metadata file.
+    pub_csv_cloud(`data/${req.body.filename}`, req.body.filename); // My code publishes this file in chunks to the cloud
+    // Broker will create a metadata file for the cloud version
   });
 
 })
@@ -225,54 +276,9 @@ init_connections()
   console.log(`Problem initializing edge server connections: ${err}`);
 });
 
-function pub_csv_cloud() {
-    const filename = process.env.TEST_FILE;
-    const path = 'data/'+filename; // Path to file on edge machine
-    const CHUNK_SIZE = 1000;
-    let COUNT = 0; // Number of lines read from file
-    let CHUNKS_READ = 1;
-    let CHUNK = [];
-    // Request holds path where this file will be stored on cloud filesystem
-
-    fs.createReadStream(path)
-    .pipe(csv())
-    .on('headers', (headers) => {
-      pub("file_upload", JSON.stringify({
-        "bucket": `e-srv${process.env.EDGE_ID}`,
-        "path": `test/`,
-        "filename": `${filename}`,
-        "chunk": headers
-      }))
-    })
-    .on('data', (row) => {
-      COUNT++;
-      CHUNK.push(row); //row is a JSON here
-      if (COUNT >= CHUNKS_READ*CHUNK_SIZE) {
-        pub("file_upload", JSON.stringify({
-          "bucket": `e-srv${process.env.EDGE_ID}`,
-          "path": `test/`,
-          "filename": `${filename}`,
-          "chunk": CHUNK
-        }))
-        CHUNK = [];
-        CHUNKS_READ ++;
-      }
-    })
-    .on('end', () => {
-      // When chunk is null, the cloud server will know to stop writing
-      console.log(` Edge wrote: ${COUNT} lines, ${CHUNKS_READ} chunks.`);
-      COUNT = 0;
-      CHUNKS_READ = 0;
-      CHUNK.push(null);
-      // Publish the final chunk
-      pub("file_upload", JSON.stringify({
-        "bucket": `e-srv${process.env.EDGE_ID}`,
-        "path": `test/`,
-        "filename": `${filename}`,
-        "chunk": CHUNK
-      }))
-      CHUNK = [];
-    });
+function metadata_of(filename) {
+  // Returns name of the corresponding metadata
+  return filename.replace(/\./g, '_')+'_meta.txt';
 }
 
 
