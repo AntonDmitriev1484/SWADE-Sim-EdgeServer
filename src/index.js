@@ -1,5 +1,5 @@
 import csv from "csv-parser"
-import fs from "fs"
+import fs, { write } from "fs"
 import express from "express"
 import moment from "moment"
 import zmq from "zeromq"
@@ -7,6 +7,7 @@ import pg from "pg"
 import dns from "dns"
 import fetch from "node-fetch"
 import * as f from "../util/functions.js"
+import multer from "multer"
 
 // Using version 6 (beta) ZMQ, Node version 14
 
@@ -36,6 +37,35 @@ const DB_CLIENT = new pg.Client({
   user: 'postgres',
   password: 'pass',
 })
+
+
+function write_csv_local_metadata(metadata_filename) {
+  let metadata = "";
+  metadata = `Groups:\n${process.env.LOCAL_GROUP}: RW\nUsers:\n${process.env.USERNAME}: RW\n`
+  fs.writeFile(`data/${metadata_filename}`, metadata, (err) => {
+    if (err) {
+      console.error('Error writing file:', err);
+    } else {
+      console.log('File written successfully.');
+    }
+  })
+}
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // On edge, all files will be stored in the same directory data/
+    const dir_path = `data`
+    cb(null, dir_path)
+  },
+  filename: function (req, file, cb) {
+    const metadata_filename = req.body.filename.replace(/\./g, '_')+'_meta.txt';
+    console.log('Metadata filename '+metadata_filename);
+    write_csv_local_metadata(metadata_filename)
+    cb(null, req.body.filename)
+  }
+})
+const upload = multer({ storage: storage });
+
+
 
 // Promise resolution gives a success / failure message
 async function connect_postgress() {
@@ -143,6 +173,9 @@ async function init_connections() {
 }
 
 
+////////////////////////////////////////////////////////////////////////////////
+
+
 init_connections()
 .then( values => {
 
@@ -178,6 +211,21 @@ init_connections()
   }
   );
 
+  app.post('/local-write', upload.single('file'), (req, res) => {
+    // Multer middleware handles writing local file and local metadata file.
+  });
+
+  app.post('/cloud-write', (req, res) => {
+    write_csv_local_metadata();
+    pub_csv_cloud();
+  });
+
+})
+.catch( err => {
+  console.log(`Problem initializing edge server connections: ${err}`);
+});
+
+function pub_csv_cloud() {
     const filename = process.env.TEST_FILE;
     const path = 'data/'+filename; // Path to file on edge machine
     const CHUNK_SIZE = 1000;
@@ -225,11 +273,7 @@ init_connections()
       }))
       CHUNK = [];
     });
-
-})
-.catch( err => {
-  console.log(`Problem initializing edge server connections: ${err}`);
-});
+}
 
 
 app.listen(EXPRESS_PORT, () => {

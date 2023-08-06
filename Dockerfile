@@ -8,6 +8,7 @@ COPY package.json /app/
 COPY src /app/src
 COPY RNG /app/RNG
 COPY data /app/data
+COPY mock-client-data /app/mock-client-data
 COPY util /app/util
 
 # copy both of these into the image's container directory

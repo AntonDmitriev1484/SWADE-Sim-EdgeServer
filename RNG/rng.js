@@ -1,4 +1,5 @@
 import fs from "fs";
+import FormData from "form-data"
 import moment from "moment"
 import  * as f from "../util/functions.js"
 
@@ -10,9 +11,34 @@ const PG_PORT = 5432;
 const EXPRESS_PORT = 3000;
 const ZMQ_PORT = 3001;
 
-
 const TIMER = 5000;
 const E_URL = "http://e-srv:3000";
+
+function simulate_local_write_to_edge() {
+
+    // Client will read files out of mock-client-data and local write them to data through the e-srv API
+
+    const file = fs.createReadStream(`mock-client-data/${process.env.TEST_FILE}`);
+    const filename = process.env.TEST_FILE;
+    const formData = new FormData();
+
+    formData.append('filename', filename);
+    formData.append('file', file); //Automatically deals with size
+
+    const og = "e-srv"+process.env.EDGE_ID;
+    f.HOFetch(`http://${og}:${EXPRESS_PORT}/local-write`, 
+    {
+        method: 'POST',
+        headers: {
+        },
+        body: formData
+    },
+    (res) => {
+        console.log(res.message);
+    });
+}
+
+setTimeout(simulate_local_write_to_edge, 6000);
 
 function generate_rand_row_db() {
     const LCLid = 'MAC000002';
