@@ -273,39 +273,54 @@ init_connections()
 
   app.post('/local-read', (req, res) => {
 
-    //Will only be reading one file at a time, don't want to deal with async/await bullshit right now
-      // Iterate through each file
-      req.body.files.forEach(file => {
+    // GARBAGE MESS
+    //res.send("test");
 
-        query_csv(file, req.body.condition, (full_query_results)=> {
-          console.log(full_query_results);
-          res.send(JSON.stringify(full_query_results)); // Res needs to accumulate values
-        })
+    let query_promises = req.body.files.map((file) => {
+       return query_csv(file, req.body.condition);
+    });
 
-      });
-    
+    Promise.all(query_promises)
+    .then( query_results => {
+      console.log(query_results);
+      //res.send("test");
+      console.log('sent res');
+    })
+    .catch( err => {
+      console.log("Error performing query on requested files", err);
+    })
+
   })
 
 
-})
+}
+)
 .catch( err => {
   console.log(`Problem initializing edge server connections: ${err}`);
 });
 
-function query_csv(name, value, on_complete) {
-  let query_results = [];
-  fs.createReadStream(`data/${name}`)
-  .pipe(csv())
-  .on('data', 
-    (row) => {
-      if ((row['energy(kWh/hh)'].trim() <= (value+0.0001)) && (row['energy(kWh/hh)'].trim() >= (value-0.0001))) {
-        query_results.push(row);
-      }
+async function query_csv(name, value) {
+
+  const read_stream = fs.createReadStream(`data/${name}`);
+
+  return new Promise((resolve, reject) => {
+    let query_results = [];
+
+    read_stream.pipe(csv())
+    .on('data', 
+      (row) => {
+        if ((row['energy(kWh/hh)'].trim() <= (value+0.0001)) && (row['energy(kWh/hh)'].trim() >= (value-0.0001))) {
+          query_results.push(row);
+        }
+    })
+    .on('end', () => {
+      console.log('Query completed');
+      resolve(query_results);
+    })
+    .on('error', (error) => {
+      reject(error);
+    });
   })
-  .on('end', () => {
-    console.log('Query completed');
-    on_complete(query_results);
-  });
 }
 
 function check_ACL(name) {

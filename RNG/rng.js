@@ -76,9 +76,40 @@ function call_local_read_endpoint_on_edge() {
             "condition": 0.186
         })
     })
+    .then(res=>{ res.json()} )
+    .then((response)=>{
+        console.log(response);
+    })
+    .catch((error)=>console.error("Error",error));
+
+}
+
+function call_read_query_endpoint_on_cloud() {
+    console.log('Reading local');
+
+    fetch(`http://c-srv:${EXPRESS_PORT}/read-query`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USER,
+            "query_components": [ 
+                {
+                    "owner":"A",
+                    "files":["MAC000002.csv","MAC000003.csv"]
+                },
+                {
+                    "owner":null,
+                     "files":["MAC000002.csv"]
+                }
+            ],
+            "condition": 0.186
+        })
+    })
     .then(res=>{ console.log(res.query_results); res.json()} )
     .then((response)=>{
-        // WHY IS THIS UNDFINED I FUCKING HATE THIS LANGUAGE
         console.log(response);
     })
     .catch((error)=>console.error("Error",error));

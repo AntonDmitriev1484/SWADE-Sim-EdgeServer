@@ -41,7 +41,6 @@ const currentDirectory = process.cwd();
 fs.readdir('./data', (err, files) => {
   
   if (err) {
-
     console.error('Error reading directory:', err);
     return;
   }
