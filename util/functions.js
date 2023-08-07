@@ -12,7 +12,7 @@ export function make_S3_header() {
 
 export function HOFetch(endpoint, json, on_success ){
     fetch(endpoint, json)
-    .then(res=>res.json())
+    .then(res=>{ console.log(res); res.json()} )
     .then((response)=>{
         on_success(response)
     })

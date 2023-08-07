@@ -2,6 +2,7 @@ import fs from "fs";
 import FormData from "form-data"
 import moment from "moment"
 import  * as f from "../util/functions.js"
+import fetch from "node-fetch"
 
 import pg from "pg"
 
@@ -10,11 +11,11 @@ import pg from "pg"
 const PG_PORT = 5432;
 const EXPRESS_PORT = 3000;
 const ZMQ_PORT = 3001;
-
+const og = "e-srv"+process.env.EDGE_ID;
 const TIMER = 5000;
 const E_URL = "http://e-srv:3000";
 
-function simulate_local_write_to_edge() {
+function call_local_write_endpoint_on_edge() {
 
     // Client will read files out of mock-client-data and local write them to data through the e-srv API
 
@@ -25,7 +26,6 @@ function simulate_local_write_to_edge() {
     formData.append('filename', filename);
     formData.append('file', file); //Automatically deals with size
 
-    const og = "e-srv"+process.env.EDGE_ID;
     f.HOFetch(`http://${og}:${EXPRESS_PORT}/local-write`, 
     {
         method: 'POST',
@@ -38,7 +38,7 @@ function simulate_local_write_to_edge() {
     });
 }
 
-function simulate_cloud_write_to_edge() {
+function call_cloud_write_endpoint_on_edge() {
 
     // Client will read files out of mock-client-data and local write them to data through the e-srv API
 
@@ -49,7 +49,6 @@ function simulate_cloud_write_to_edge() {
     formData.append('filename', filename);
     formData.append('file', file); //Automatically deals with size
 
-    const og = "e-srv"+process.env.EDGE_ID;
     f.HOFetch(`http://${og}:${EXPRESS_PORT}/cloud-write`, 
     {
         method: 'POST',
@@ -62,7 +61,33 @@ function simulate_cloud_write_to_edge() {
     });
 }
 
-setTimeout(simulate_cloud_write_to_edge, 6000);
+function call_local_read_endpoint_on_edge() {
+    console.log('Reading local');
+
+    fetch(`http://${og}:${EXPRESS_PORT}/local-read`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USER,
+            "files": [process.env.TEST_FILE],
+            "condition": 0.186
+        })
+    })
+    .then(res=>{ console.log(res.query_results); res.json()} )
+    .then((response)=>{
+        // WHY IS THIS UNDFINED I FUCKING HATE THIS LANGUAGE
+        console.log(response);
+    })
+    .catch((error)=>console.error("Error",error));
+
+}
+
+
+setTimeout(call_local_write_endpoint_on_edge, 6000);
+setTimeout(call_local_read_endpoint_on_edge, 7000);
 
 function generate_rand_row_db() {
     const LCLid = 'MAC000002';

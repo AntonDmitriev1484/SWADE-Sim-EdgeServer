@@ -271,10 +271,46 @@ init_connections()
     // Broker will create a metadata file for the cloud version
   });
 
+  app.post('/local-read', (req, res) => {
+
+    //Will only be reading one file at a time, don't want to deal with async/await bullshit right now
+      // Iterate through each file
+      req.body.files.forEach(file => {
+
+        query_csv(file, req.body.condition, (full_query_results)=> {
+          console.log(full_query_results);
+          res.send(JSON.stringify(full_query_results)); // Res needs to accumulate values
+        })
+
+      });
+    
+  })
+
+
 })
 .catch( err => {
   console.log(`Problem initializing edge server connections: ${err}`);
 });
+
+function query_csv(name, value, on_complete) {
+  let query_results = [];
+  fs.createReadStream(`data/${name}`)
+  .pipe(csv())
+  .on('data', 
+    (row) => {
+      if ((row['energy(kWh/hh)'].trim() <= (value+0.0001)) && (row['energy(kWh/hh)'].trim() >= (value-0.0001))) {
+        query_results.push(row);
+      }
+  })
+  .on('end', () => {
+    console.log('Query completed');
+    on_complete(query_results);
+  });
+}
+
+function check_ACL(name) {
+  // Do this later
+}
 
 function metadata_of(filename) {
   // Returns name of the corresponding metadata
