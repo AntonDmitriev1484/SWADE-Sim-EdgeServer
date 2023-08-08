@@ -121,12 +121,12 @@ function call_filesys_read_endpoint_on_cloud() {
     .catch((error)=>console.error("Error",error));
 }
 // Test, cloud-write 2 files, then cloud-read a query across both of them.
-setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000002.csv'), 6000);
-setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
-setTimeout(() => call_filesys_read_endpoint_on_cloud(), 7000);
+// setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000002.csv'), 6000);
+// setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
+// setTimeout(() => call_filesys_read_endpoint_on_cloud(), 7000);
 
 function call_query_read_endpoint_on_broker() {
-    console.log('Reading with hybrid-query');
+    console.log('Reading local and cloud data with hybrid-query');
 
     fetch(`http://c-srv:${EXPRESS_PORT}/read-query`, {
         method: 'POST',
@@ -138,12 +138,12 @@ function call_query_read_endpoint_on_broker() {
             "user": process.env.USER,
             "query_components": [ 
                 {
-                    "owner":"A",
-                    "files":["MAC000002.csv","MAC000003.csv"]
+                    "owner":null,
+                    "files":["B/test/MAC000002.csv","B/test/MAC000004.csv"]
                 },
                 {
-                    "owner":null,
-                     "files":["MAC000002.csv"]
+                    "owner":"A",
+                     "files":["MAC000003.csv"]
                 }
             ],
             "condition": 0.186
@@ -154,8 +154,20 @@ function call_query_read_endpoint_on_broker() {
         console.log(response);
     })
     .catch((error)=>console.error("Error",error));
-
 }
+// Test: See diagram on iPad.
+// The idea is that we will directly call read-query on broker
+// and then that query will join files that A published to the cloud, and a file local to group B
+// using u2 in A, B to upload cloud data and call endpoint
+if (process.env.LOCAL_GROUP === "B") {
+    setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000002.csv'), 6000);
+    setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
+    setTimeout(() => call_query_read_endpoint_on_broker(), 7000);
+}
+if (process.env.LOCAL_GROUP === "A") {
+    setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6000);
+}
+
 
 
 function generate_rand_row_db() {
