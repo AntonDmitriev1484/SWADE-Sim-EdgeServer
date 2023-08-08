@@ -102,7 +102,7 @@ async function cloud_registration() {
           },
           {
             "name": "file_upload",
-            "bucket": `e-srv${process.env.EDGE_ID}`
+            "bucket": `${process.env.LOCAL_GROUP}`
           }
       ]
       })
@@ -194,7 +194,7 @@ init_connections()
       .on('headers', (headers) => {
         pub("file_upload", JSON.stringify({
           "user": USER,
-          "bucket": `e-srv${process.env.EDGE_ID}`,
+          "bucket": `${process.env.LOCAL_GROUP}`,
           "path": `test/`,
           "filename": `${filename}`,
           "chunk": headers
@@ -206,7 +206,7 @@ init_connections()
         if (COUNT >= CHUNKS_READ*CHUNK_SIZE) {
           pub("file_upload", JSON.stringify({
             "user": USER,
-            "bucket": `e-srv${process.env.EDGE_ID}`,
+            "bucket": `${process.env.LOCAL_GROUP}`,
             "path": `test/`,
             "filename": `${filename}`,
             "chunk": CHUNK
@@ -224,7 +224,7 @@ init_connections()
         // Publish the final chunk
         pub("file_upload", JSON.stringify({
           "user": USER,
-          "bucket": `e-srv${process.env.EDGE_ID}`,
+          "bucket": `${process.env.LOCAL_GROUP}`,
           "path": `test/`,
           "filename": `${filename}`,
           "chunk": CHUNK
@@ -272,9 +272,6 @@ init_connections()
   });
 
   app.post('/local-read', (req, res) => {
-
-    // GARBAGE MESS
-    //res.send("test");
 
     let query_promises = req.body.files.map((file) => {
        return query_csv(file, req.body.condition);

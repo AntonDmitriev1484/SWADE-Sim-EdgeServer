@@ -38,12 +38,16 @@ function call_local_write_endpoint_on_edge() {
     });
 }
 
-function call_cloud_write_endpoint_on_edge() {
+function call_cloud_write_endpoint_on_edge(filename) {
 
     // Client will read files out of mock-client-data and local write them to data through the e-srv API
 
-    const file = fs.createReadStream(`mock-client-data/${process.env.TEST_FILE}`);
-    const filename = process.env.TEST_FILE;
+    // const file = fs.createReadStream(`mock-client-data/${process.env.TEST_FILE}`);
+    // const filename = process.env.TEST_FILE;
+
+    const file = fs.createReadStream(`mock-client-data/${filename}`);
+    // const filename = process.env.TEST_FILE;
+
     const formData = new FormData();
 
     formData.append('filename', filename);
@@ -78,6 +82,7 @@ function call_local_read_endpoint_on_edge() {
     })
     .then(res=> res.json() )
     .then((response)=>{
+        // Not sure why you need to stringify it when it comes from the cloud, but this is chillin
         console.log(response.query_results);
     })
     .catch((error)=>console.error("Error",error));
@@ -86,9 +91,42 @@ function call_local_read_endpoint_on_edge() {
     // res => {res.json()} doesn't return anything, so its undefined
     // res => res,json() or res => {return res.json()} would work
 }
+// Test: local-write, then local-read by query
+// setTimeout(call_local_write_endpoint_on_edge, 6000);
+// setTimeout(call_local_read_endpoint_on_edge, 7000);
 
-function call_read_query_endpoint_on_cloud() {
-    console.log('Reading local');
+function call_filesys_read_endpoint_on_cloud() {
+    console.log('Reading cloud filesystem');
+
+    // Going to test this with one edge server uploading 2 files then querying these 2 files
+
+    fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USER,
+            "bucket": process.env.LOCAL_GROUP,
+            "files":["test/MAC000002.csv","test/MAC000004.csv"],
+            "condition": 0.186
+        })
+    })
+    .then(res=> res.json() )
+    .then((response)=>{
+        // I'm not sure why you need to stringify it when it comes from the cloud
+        console.log(JSON.stringify(response.query_results));
+    })
+    .catch((error)=>console.error("Error",error));
+}
+// Test, cloud-write 2 files, then cloud-read a query across both of them.
+setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000002.csv'), 6000);
+setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
+setTimeout(() => call_filesys_read_endpoint_on_cloud(), 7000);
+
+function call_query_read_endpoint_on_broker() {
+    console.log('Reading with hybrid-query');
 
     fetch(`http://c-srv:${EXPRESS_PORT}/read-query`, {
         method: 'POST',
@@ -111,7 +149,7 @@ function call_read_query_endpoint_on_cloud() {
             "condition": 0.186
         })
     })
-    .then(res=>{ console.log(res.query_results); res.json()} )
+    .then(res=>res.json() )
     .then((response)=>{
         console.log(response);
     })
@@ -119,9 +157,6 @@ function call_read_query_endpoint_on_cloud() {
 
 }
 
-
-setTimeout(call_local_write_endpoint_on_edge, 6000);
-setTimeout(call_local_read_endpoint_on_edge, 7000);
 
 function generate_rand_row_db() {
     const LCLid = 'MAC000002';
