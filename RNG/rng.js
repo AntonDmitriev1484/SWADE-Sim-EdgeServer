@@ -76,12 +76,15 @@ function call_local_read_endpoint_on_edge() {
             "condition": 0.186
         })
     })
-    .then(res=>{ res.json()} )
+    .then(res=> res.json() )
     .then((response)=>{
-        console.log(response);
+        console.log(response.query_results);
     })
     .catch((error)=>console.error("Error",error));
 
+    // WHEN you put a lambda in brackets, it needs to have a return statement
+    // res => {res.json()} doesn't return anything, so its undefined
+    // res => res,json() or res => {return res.json()} would work
 }
 
 function call_read_query_endpoint_on_cloud() {
