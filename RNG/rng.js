@@ -76,7 +76,7 @@ function call_local_read_endpoint_on_edge() {
             "content-type": "application/json"
         },
         body: JSON.stringify({
-            "user": process.env.USER,
+            "user": process.env.USERNAME,
             "files": [process.env.TEST_FILE],
             "condition": 0.186
         })
@@ -108,7 +108,7 @@ function call_filesys_read_endpoint_on_cloud() {
             "content-type": "application/json"
         },
         body: JSON.stringify({
-            "user": process.env.USER,
+            "user": process.env.USERNAME,
             "bucket": process.env.LOCAL_GROUP,
             "files":["test/MAC000002.csv","test/MAC000004.csv"],
             "condition": 0.186
@@ -136,7 +136,7 @@ function call_query_read_endpoint_on_broker() {
             "content-type": "application/json"
         },
         body: JSON.stringify({
-            "user": process.env.USER,
+            "user": process.env.USERNAME,
             "query_components": [ 
                 {
                     "owner":null,
@@ -161,13 +161,66 @@ function call_query_read_endpoint_on_broker() {
 // The idea is that we will directly call read-query on broker
 // and then that query will join files that A published to the cloud, and a file local to group B
 // using u2 in A, B to upload cloud data and call endpoint
-if (process.env.LOCAL_GROUP === "B") {
+// if (process.env.LOCAL_GROUP === "B") {
+//     setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000002.csv'), 6000);
+//     setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
+//     setTimeout(() => call_query_read_endpoint_on_broker(), 7000);
+// }
+// if (process.env.LOCAL_GROUP === "A") {
+//     setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6000);
+// }
+
+
+function call_query_read_endpoint_on_broker_test_PE() {
+    console.log('Reading local and cloud data with hybrid-query, testing policy engine authentication');
+
+    fetch(`http://c-srv:${EXPRESS_PORT}/read-query`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USERNAME,
+            "query_components": [ 
+                {
+                    "owner":null,
+                    "bucket": "B",
+                    "files":["test/MAC000002.csv","test/MAC000004.csv"]
+                },
+                {
+                    "owner":"A",
+                     "files":["MAC000003.csv"]
+                },
+                {
+                    "owner":"C",
+                     "files":["MAC000005.csv"]
+                }
+            ],
+            "condition": 0.186
+        })
+    })
+    .then(res=>res.json() )
+    .then((response)=>{
+        console.log(JSON.stringify(response.query_results));
+    })
+    .catch((error)=>console.error("Error",error));
+}
+// Test: See diagram on iPad.
+// Building on the previous test, see if hybrid cloud can return a partially
+// completed query. The query component to group C's local machine gets rejected
+// because u2 isn't in group C.
+
+if (process.env.LOCAL_GROUP === "B") { //u2
     setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000002.csv'), 6000);
     setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
-    setTimeout(() => call_query_read_endpoint_on_broker(), 7000);
+    setTimeout(() => call_query_read_endpoint_on_broker_test_PG(), 7000);
 }
-if (process.env.LOCAL_GROUP === "A") {
+if (process.env.LOCAL_GROUP === "A") { //u1
     setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6000);
+}
+if (process.env.LOCAL_GROUP === "C") { //u3
+    setTimeout(() => call_local_write_endpoint_on_edge('MAC000005.csv'), 6000);
 }
 
 

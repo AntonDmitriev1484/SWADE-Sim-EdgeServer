@@ -277,7 +277,7 @@ init_connections()
        return query_csv(file, req.body.condition);
     });
 
-    Promise.all(query_promises)
+    Promise.allSettled(query_promises)
     .then( query_results => {
       console.log('EDGE '+query_results);
       res.send({query_results: query_results});
