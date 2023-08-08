@@ -15,12 +15,13 @@ const og = "e-srv"+process.env.EDGE_ID;
 const TIMER = 5000;
 const E_URL = "http://e-srv:3000";
 
-function call_local_write_endpoint_on_edge() {
+function call_local_write_endpoint_on_edge(filename) {
 
     // Client will read files out of mock-client-data and local write them to data through the e-srv API
 
-    const file = fs.createReadStream(`mock-client-data/${process.env.TEST_FILE}`);
-    const filename = process.env.TEST_FILE;
+    // const file = fs.createReadStream(`mock-client-data/${process.env.TEST_FILE}`);
+    // const filename = process.env.TEST_FILE;
+    const file = fs.createReadStream(`mock-client-data/${filename}`);
     const formData = new FormData();
 
     formData.append('filename', filename);
@@ -139,7 +140,8 @@ function call_query_read_endpoint_on_broker() {
             "query_components": [ 
                 {
                     "owner":null,
-                    "files":["B/test/MAC000002.csv","B/test/MAC000004.csv"]
+                    "bucket": "B",
+                    "files":["test/MAC000002.csv","test/MAC000004.csv"]
                 },
                 {
                     "owner":"A",
@@ -151,7 +153,7 @@ function call_query_read_endpoint_on_broker() {
     })
     .then(res=>res.json() )
     .then((response)=>{
-        console.log(response);
+        console.log(JSON.stringify(response.query_results));
     })
     .catch((error)=>console.error("Error",error));
 }

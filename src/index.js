@@ -279,7 +279,7 @@ init_connections()
 
     Promise.all(query_promises)
     .then( query_results => {
-      // console.log(query_results);
+      console.log('EDGE '+query_results);
       res.send({query_results: query_results});
       console.log('sent res');
     })
