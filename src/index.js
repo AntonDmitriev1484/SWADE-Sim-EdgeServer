@@ -273,7 +273,7 @@ init_connections()
 
   // {
   //   select_fields: [''], // We will use this to index into the json
-  //   files: [''],
+  //   from_files: [''],
   //   where: [
   //     { field: '', range: [ , ]} // Convert these to lambda predicates
   //   ]
@@ -282,7 +282,7 @@ init_connections()
   app.post('/local-read', (req, res) => {
 
     let query_predicates = build_query_predicates(req.body.where);
-    let query_promises = req.body.files.map((filename) => {
+    let query_promises = req.body.from_files.map((filename) => {
        return query_csv(filename, req.body.select_fields, query_predicates);
     });
 

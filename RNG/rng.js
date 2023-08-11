@@ -15,6 +15,7 @@ const og = "e-srv"+process.env.EDGE_ID;
 const TIMER = 5000;
 const E_URL = "http://e-srv:3000";
 
+
 function call_local_write_endpoint_on_edge(filename) {
 
     // Client will read files out of mock-client-data and local write them to data through the e-srv API
@@ -68,6 +69,7 @@ function call_cloud_write_endpoint_on_edge(filename) {
     });
 }
 
+/* THESE WONT WORK ANYMORE: I changed up the format for read query requests
 function call_local_read_endpoint_on_edge() {
     console.log('Reading local');
 
@@ -224,7 +226,39 @@ if (process.env.LOCAL_GROUP === "A") { //u1
 if (process.env.LOCAL_GROUP === "C") { //u3
     setTimeout(() => call_local_write_endpoint_on_edge('MAC000005.csv'), 6000);
 }
+*/
 
+// Testing more complex querying for experiments
+function call_local_read_endpoint_on_edge() {
+    console.log('Reading local');
+
+    fetch(`http://${og}:${EXPRESS_PORT}/local-read`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USERNAME,
+            "select_fields": ['tstp', 'energy(kWh/hh)'],
+            "from_files": ['MAC000002.csv','MAC000003.csv','MAC000004.csv'],
+            "where": [
+                { field: 'tstp', range: ['1/1/2013 18:00', '1/3/2013 23:30']}
+            ]
+        })
+    })
+    .then(res=> res.json() )
+    .then((response)=>{
+        // Not sure why you need to stringify it when it comes from the cloud, but this is chillin
+        console.log(response.query_results);
+    })
+    .catch((error)=>console.error("Error",error));
+}
+// Test: local-write, then local-read by query
+setTimeout(call_local_write_endpoint_on_edge('MAC000002.csv'), 6000);
+setTimeout(call_local_write_endpoint_on_edge('MAC000003.csv'), 6250);
+setTimeout(call_local_write_endpoint_on_edge('MAC000004.csv'), 6500);
+setTimeout(call_local_read_endpoint_on_edge(), 7000);
 
 
 function generate_rand_row_db() {
