@@ -256,10 +256,43 @@ function call_local_read_endpoint_on_edge() {
     .catch((error)=>console.error("Error",error));
 }
 // Test: local-write, then local-read by query
-//setTimeout(() => call_local_write_endpoint_on_edge('MAC000002.csv'), 6000);
-setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6250);
-setTimeout(() => call_local_write_endpoint_on_edge('MAC000004.csv'), 6500);
-setTimeout(call_local_read_endpoint_on_edge, 7000);
+//setTimeout(() => call_local_write_endpoint_on_edge('MAC000002.csv'), 6000); // DONT USE MAC02
+// setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6250);
+// setTimeout(() => call_local_write_endpoint_on_edge('MAC000004.csv'), 6500);
+// setTimeout(call_local_read_endpoint_on_edge, 7000);
+
+// Testing more complex querying for experiments
+function call_filesys_read_endpoint_on_cloud() {
+    console.log('Reading cloud');
+
+    fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USERNAME,
+            "select_fields": ['tstp', 'energy(kWh/hh)', 'LCLid'],
+            "in_bucket": "A",
+            "from_files": ['test/MAC000003.csv', 'test/MAC000004.csv'],
+            "where": [
+                { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-01-03 00:00:00']}
+                // { field: 'energy(kWh/hh)', range: ['0.120', '0.150']}
+            ]
+        })
+    })
+    .then(res=> res.json() )
+    .then((response)=>{
+        // Not sure why you need to stringify it when it comes from the cloud, but this is chillin
+        console.log(JSON.stringify(response.query_results));
+    })
+    .catch((error)=>console.error("Error",error));
+}
+// Testing this with one machine, group A, these files will be in cloud filesys in bucket A
+setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000003.csv'), 6250);
+setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
+setTimeout(call_filesys_read_endpoint_on_cloud, 7000);
 
 
 function generate_rand_row_db() {
