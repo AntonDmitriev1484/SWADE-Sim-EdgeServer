@@ -272,6 +272,7 @@ init_connections()
   });
 
   // {
+  //   user: ''
   //   select_fields: [''], // We will use this to index into the json
   //   from_files: [''],
   //   where: [

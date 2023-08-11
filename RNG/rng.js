@@ -277,8 +277,8 @@ function call_filesys_read_endpoint_on_cloud() {
             "in_bucket": "A",
             "from_files": ['test/MAC000003.csv', 'test/MAC000004.csv'],
             "where": [
-                { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-01-03 00:00:00']}
-                // { field: 'energy(kWh/hh)', range: ['0.120', '0.150']}
+                { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-01-03 00:00:00']},
+                { field: 'energy(kWh/hh)', range: ['0.120', '0.150']}
             ]
         })
     })
@@ -290,9 +290,67 @@ function call_filesys_read_endpoint_on_cloud() {
     .catch((error)=>console.error("Error",error));
 }
 // Testing this with one machine, group A, these files will be in cloud filesys in bucket A
-setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000003.csv'), 6250);
-setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
-setTimeout(call_filesys_read_endpoint_on_cloud, 7000);
+// setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000003.csv'), 6250);
+// setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
+// setTimeout(call_filesys_read_endpoint_on_cloud, 7000);
+
+// Re-running this to test the new query system
+function call_query_read_endpoint_on_broker_test_PE() {
+    console.log('Reading local and cloud data with hybrid-query, testing policy engine authentication');
+
+    fetch(`http://c-srv:${EXPRESS_PORT}/read-query`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USERNAME,
+            "select_fields": ['tstp', 'energy(kWh/hh)', 'LCLid'],
+            "query_components": [ 
+                {
+                    "owner":null,
+                    "bucket": "B",
+                    "from_files":["test/MAC000004.csv"]
+                },
+                {
+                    "owner":"A",
+                     "from_files":["MAC000003.csv"]
+                },
+                {
+                    "owner":"C",
+                     "from_files":["MAC000005.csv"]
+                }
+            ],
+            "where": [
+                { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-01-03 00:00:00']}
+                //{ field: 'energy(kWh/hh)', range: ['0.120', '0.150']}
+            ]
+            
+        })
+    })
+    .then(res=>res.json() )
+    .then((response)=>{
+        console.log(JSON.stringify(response.query_results));
+    })
+    .catch((error)=>console.error("Error",error));
+}
+// Test: See diagram on iPad.
+// Building on the previous test, see if hybrid cloud can return a partially
+// completed query. The query component to group C's local machine gets rejected
+// because u2 isn't in group C.
+
+if (process.env.LOCAL_GROUP === "B") { //u2
+    setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 7000);
+    setTimeout(() => call_query_read_endpoint_on_broker_test_PE(), 8000);
+}
+if (process.env.LOCAL_GROUP === "A") { //u1
+    setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6000);
+}
+if (process.env.LOCAL_GROUP === "C") { //u3
+    setTimeout(() => call_local_write_endpoint_on_edge('MAC000005.csv'), 6000);
+}
+
 
 
 function generate_rand_row_db() {
