@@ -271,10 +271,19 @@ init_connections()
     // Broker will create a metadata file for the cloud version
   });
 
+  // {
+  //   select_fields: [''], // We will use this to index into the json
+  //   files: [''],
+  //   where: [
+  //     { field: '', range: [ , ]} // Convert these to lambda predicates
+  //   ]
+  // }
+
   app.post('/local-read', (req, res) => {
 
-    let query_promises = req.body.files.map((file) => {
-       return query_csv(file, req.body.condition);
+    let query_predicates = build_query_predicates(req.body.where);
+    let query_promises = req.body.files.map((filename) => {
+       return query_csv(filename, req.body.select_fields, query_predicates);
     });
 
     Promise.allSettled(query_promises)
@@ -296,9 +305,11 @@ init_connections()
   console.log(`Problem initializing edge server connections: ${err}`);
 });
 
-async function query_csv(name, value) {
+async function query_csv(filename, select_fields, predicates) {
 
-  const read_stream = fs.createReadStream(`data/${name}`);
+  // predicates replace 'value'
+
+  const read_stream = fs.createReadStream(`data/${filename}`);
 
   return new Promise((resolve, reject) => {
     let query_results = [];
@@ -306,8 +317,21 @@ async function query_csv(name, value) {
     read_stream.pipe(csv())
     .on('data', 
       (row) => {
-        if ((row['energy(kWh/hh)'].trim() <= (value+0.0001)) && (row['energy(kWh/hh)'].trim() >= (value-0.0001))) {
-          query_results.push(row);
+
+        // Each predicate checks some field, on some range
+        // When all predicates are true, we know this row satisifes our query
+        let fulfills_predicates = predicates.reduce( (acc, predicate) => {
+          return acc && predicate(row); 
+        }, true)
+
+        if (fulfills_predicates) {
+          // Filter all fields in the row to be just what was request by
+          // select_fields in the query
+          let row_result = {};
+          select_fields.forEach((field) => {
+            row_result[field] = row[field]
+          })
+          query_results.push(row_result);
         }
     })
     .on('end', () => {
@@ -318,6 +342,46 @@ async function query_csv(name, value) {
       reject(error);
     });
   })
+}
+
+// Converts json 'where' clauses to an array of predicates we can run through on each row 
+function build_query_predicates(where_clause) {
+  return where_clause.map(
+    (clause) => {
+
+      // Depending on what field our clause checks, we need to convert to the proper comparable objects
+      let f = (field) => {
+        if (clause.field === 'tstp') {
+          console.log(`String read in row: ${row[clause.field]}`);
+          // Chat GPT code for converting this MAC file tstp into date time objects
+          const dateString = row[clause.field].trim();
+          const [datePart, timePart] = dateString.split(' '); // Split date and time parts
+          const [month, day, year] = datePart.split('/').map(Number); // Parse day, month, year
+          const [hours, minutes] = timePart.split(':').map(Number); // Parse hours, minutes
+          // Create a new Date object with the parsed values
+          const dateTime = new Date(year, month - 1, day, hours, minutes);
+          console.log(`Converted dateTime object: ${dateTime.toISOString()}`);
+          return dateTime;
+        }
+        else if (clause.field === 'energy(kWh/hh)') {
+          return row[clause.field].trim();
+        }
+
+      }
+
+      if (clause.range[0] === undefined) { // Lower range = inf
+        return row => (f(row[clause.field]) < f(clause.range[1]))
+      }
+      else if (clause.range[1] === undefined) { // Upper range = inf
+        return row => (f(row[clause.field]) > f(clause.range[0]))
+      }
+      else { // We have a range
+        return row => (
+          (f(row[clause.field]) > f(clause.range[0])) && (f(row[clause.field]) < f(clause.range[1]))
+          )
+      }
+    }
+  )
 }
 
 function check_ACL(name) {

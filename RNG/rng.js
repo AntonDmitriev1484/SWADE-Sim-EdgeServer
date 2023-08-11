@@ -41,6 +41,8 @@ function call_local_write_endpoint_on_edge(filename) {
 
 function call_cloud_write_endpoint_on_edge(filename) {
 
+    console.log('Writing '+filename);
+
     // Client will read files out of mock-client-data and local write them to data through the e-srv API
 
     // const file = fs.createReadStream(`mock-client-data/${process.env.TEST_FILE}`);
@@ -213,8 +215,8 @@ function call_query_read_endpoint_on_broker_test_PE() {
 
 if (process.env.LOCAL_GROUP === "B") { //u2
     setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000002.csv'), 6000);
-    setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 6500);
-    setTimeout(() => call_query_read_endpoint_on_broker_test_PG(), 7000);
+    setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 7000);
+    setTimeout(() => call_query_read_endpoint_on_broker_test_PE(), 8000);
 }
 if (process.env.LOCAL_GROUP === "A") { //u1
     setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6000);
