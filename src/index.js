@@ -281,6 +281,8 @@ init_connections()
 
   app.post('/local-read', (req, res) => {
 
+    // Note: WHY ARE THE TIMESTAMPS FORMATTED DIFFERENTLY BETWEEN FILES :(((
+
     let query_predicates = build_query_predicates(req.body.where);
     let query_promises = req.body.from_files.map((filename) => {
        return query_csv(filename, req.body.select_fields, query_predicates);
@@ -351,34 +353,60 @@ function build_query_predicates(where_clause) {
 
       // Depending on what field our clause checks, we need to convert to the proper comparable objects
       let f = (field) => {
+
+        if (field === undefined) {
+          return field;
+        }
+
         if (clause.field === 'tstp') {
-          console.log(`String read in row: ${row[clause.field]}`);
-          // Chat GPT code for converting this MAC file tstp into date time objects
-          const dateString = row[clause.field].trim();
-          const [datePart, timePart] = dateString.split(' '); // Split date and time parts
-          const [month, day, year] = datePart.split('/').map(Number); // Parse day, month, year
-          const [hours, minutes] = timePart.split(':').map(Number); // Parse hours, minutes
+          //console.log(`String read in row: ${field}`);
+
+          // Chat GPT code for converting this MAC02 file tstp into date time objects
+          // const dateString = field.trim();
+          // const [datePart, timePart] = dateString.split(' '); // Split date and time parts
+          // const [month, day, year] = datePart.split('/').map(Number); // Parse day, month, year
+          // const [hours, minutes] = timePart.split(':').map(Number); // Parse hours, minutes
           // Create a new Date object with the parsed values
-          const dateTime = new Date(year, month - 1, day, hours, minutes);
-          console.log(`Converted dateTime object: ${dateTime.toISOString()}`);
+          // const dateTime = new Date(year, month - 1, day, hours, minutes);
+
+          // For NOT MAC02 files
+          const dateTimeString = field;
+          const [datePart, timePart] = dateTimeString.split(' '); // Split date and time parts
+          const [year, month, day] = datePart.split('-').map(Number); // Parse year, month, day
+          const [hours, minutes, seconds] = timePart.split(':').map(Number); // Parse hours, minutes, seconds
+
+          // Create a new Date object with the parsed values
+          const dateTime = new Date(year, month - 1, day, hours, minutes, seconds);
+          
+          //console.log(`Converted dateTime object: ${dateTime}`);
           return dateTime;
         }
         else if (clause.field === 'energy(kWh/hh)') {
-          return row[clause.field].trim();
+          return field.trim();
         }
 
       }
 
+      const lower = f(clause.range[0]);
+      const upper = f(clause.range[1]);
+
       if (clause.range[0] === undefined) { // Lower range = inf
-        return row => (f(row[clause.field]) < f(clause.range[1]))
+        return row => (f(row[clause.field]) < upper)
       }
       else if (clause.range[1] === undefined) { // Upper range = inf
-        return row => (f(row[clause.field]) > f(clause.range[0]))
+        return row => (f(row[clause.field]) > lower)
       }
       else { // We have a range
-        return row => (
-          (f(row[clause.field]) > f(clause.range[0])) && (f(row[clause.field]) < f(clause.range[1]))
-          )
+        return row => {
+          const formatted_field = f(row[clause.field])
+          const above_lower = formatted_field > lower
+          const below_upper = formatted_field < upper
+
+          // console.log(`Upper: ${upper} - Lower: ${lower}`)
+          // console.log(`${formatted} above_lower: ${above_lower} below_upper: ${below_upper}`);
+
+          return (above_lower && below_upper);
+        }
       }
     }
   )

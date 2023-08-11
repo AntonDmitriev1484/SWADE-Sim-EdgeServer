@@ -240,25 +240,25 @@ function call_local_read_endpoint_on_edge() {
         },
         body: JSON.stringify({
             "user": process.env.USERNAME,
-            "select_fields": ['tstp', 'energy(kWh/hh)'],
-            "from_files": ['MAC000002.csv','MAC000003.csv','MAC000004.csv'],
+            "select_fields": ['tstp', 'energy(kWh/hh)', 'LCLid'],
+            "from_files": ['MAC000003.csv', 'MAC000004.csv'],
             "where": [
-                { field: 'tstp', range: ['1/1/2013 18:00', '1/3/2013 23:30']}
+                { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-01-03 00:00:00']}
             ]
         })
     })
     .then(res=> res.json() )
     .then((response)=>{
         // Not sure why you need to stringify it when it comes from the cloud, but this is chillin
-        console.log(response.query_results);
+        console.log(JSON.stringify(response.query_results));
     })
     .catch((error)=>console.error("Error",error));
 }
 // Test: local-write, then local-read by query
-setTimeout(call_local_write_endpoint_on_edge('MAC000002.csv'), 6000);
-setTimeout(call_local_write_endpoint_on_edge('MAC000003.csv'), 6250);
-setTimeout(call_local_write_endpoint_on_edge('MAC000004.csv'), 6500);
-setTimeout(call_local_read_endpoint_on_edge(), 7000);
+//setTimeout(() => call_local_write_endpoint_on_edge('MAC000002.csv'), 6000);
+setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6250);
+setTimeout(() => call_local_write_endpoint_on_edge('MAC000004.csv'), 6500);
+setTimeout(call_local_read_endpoint_on_edge, 7000);
 
 
 function generate_rand_row_db() {
