@@ -229,7 +229,7 @@ if (process.env.LOCAL_GROUP === "C") { //u3
 */
 
 // Testing more complex querying for experiments
-function call_local_read_endpoint_on_edge() {
+function call_local_read_endpoint_on_edge(files) {
     console.log('Reading local');
 
     fetch(`http://${og}:${EXPRESS_PORT}/local-read`, {
@@ -241,7 +241,7 @@ function call_local_read_endpoint_on_edge() {
         body: JSON.stringify({
             "user": process.env.USERNAME,
             "select_fields": ['tstp', 'energy(kWh/hh)', 'LCLid'],
-            "from_files": ['MAC000003.csv', 'MAC000004.csv'],
+            "from_files": files,
             "where": [
                 { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-01-03 00:00:00']},
                 { field: 'energy(kWh/hh)', range: ['0.120', '0.150']}
@@ -259,7 +259,7 @@ function call_local_read_endpoint_on_edge() {
 //setTimeout(() => call_local_write_endpoint_on_edge('MAC000002.csv'), 6000); // DONT USE MAC02
 // setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6250);
 // setTimeout(() => call_local_write_endpoint_on_edge('MAC000004.csv'), 6500);
-// setTimeout(call_local_read_endpoint_on_edge, 7000);
+// setTimeout(() => call_local_read_endpoint_on_edge(['MAC000003.csv', 'MAC000004.csv']), 7000);
 
 // Testing more complex querying for experiments
 function call_filesys_read_endpoint_on_cloud() {
@@ -340,16 +340,86 @@ function call_query_read_endpoint_on_broker_test_PE() {
 // completed query. The query component to group C's local machine gets rejected
 // because u2 isn't in group C.
 
-if (process.env.LOCAL_GROUP === "B") { //u2
-    setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 7000);
-    setTimeout(() => call_query_read_endpoint_on_broker_test_PE(), 8000);
+// if (process.env.LOCAL_GROUP === "B") { //u2
+//     setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000004.csv'), 7000);
+//     setTimeout(() => call_query_read_endpoint_on_broker_test_PE(), 8000);
+// }
+// if (process.env.LOCAL_GROUP === "A") { //u1
+//     setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6000);
+// }
+// if (process.env.LOCAL_GROUP === "C") { //u3
+//     setTimeout(() => call_local_write_endpoint_on_edge('MAC000005.csv'), 6000);
+// }
+
+
+
+function call_local_read_endpoint_on_edge_test_block(files) {
+    console.log('Reading local');
+
+    fetch(`http://${og}:${EXPRESS_PORT}/local-read`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USERNAME,
+            "select_fields": ['day', 'energy_median', 'LCLid'],
+            "from_files": ['block_1.csv'],
+            "where": [
+                { field: 'day', range: ['2012-04-01', '2012-04-05']},
+            ]
+        })
+    })
+    .then(res=> res.json() )
+    .then((response)=>{
+        // Not sure why you need to stringify it when it comes from the cloud, but this is chillin
+        console.log(JSON.stringify(response.query_results));
+    })
+    .catch((error)=>console.error("Error",error));
 }
-if (process.env.LOCAL_GROUP === "A") { //u1
-    setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6000);
-}
-if (process.env.LOCAL_GROUP === "C") { //u3
-    setTimeout(() => call_local_write_endpoint_on_edge('MAC000005.csv'), 6000);
-}
+setTimeout(() => call_local_write_endpoint_on_edge('block_1.csv'), 6000);
+setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6250);
+//setTimeout(() => call_local_write_endpoint_on_edge('MAC000004.csv'), 6500);
+
+setTimeout(() => call_local_read_endpoint_on_edge_test_block(['block_1.csv']), 7000);
+// Correct, never stopped, ran through all data but still returned the proper timestamp range.
+
+//setTimeout(() => call_local_read_endpoint_on_edge(['MAC000003.csv']), 7250);
+// Correct, stopped immediatley after we reached something larger than 1/3/2013 00:00:00
+// Stopper works as intended for MAC!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

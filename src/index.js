@@ -6,7 +6,7 @@ import zmq from "zeromq"
 import pg from "pg"
 import dns from "dns"
 import fetch from "node-fetch"
-import * as f from "../util/functions.js"
+//import * as f from "../util/functions.js"
 import multer from "multer"
 
 // Using version 6 (beta) ZMQ, Node version 14
@@ -282,11 +282,12 @@ init_connections()
 
   app.post('/local-read', (req, res) => {
 
-    // Note: WHY ARE THE TIMESTAMPS FORMATTED DIFFERENTLY BETWEEN FILES :(((
+    const query_predicates = build_query_predicates(req.body.where);
 
-    let query_predicates = build_query_predicates(req.body.where);
     let query_promises = req.body.from_files.map((filename) => {
-       return query_csv(filename, req.body.select_fields, query_predicates);
+     
+        const query_stopper = build_query_stopper(req.body.where, filename);
+       return query_csv(filename, req.body.select_fields, query_predicates, query_stopper);
     });
 
     Promise.allSettled(query_promises)
@@ -308,7 +309,7 @@ init_connections()
   console.log(`Problem initializing edge server connections: ${err}`);
 });
 
-async function query_csv(filename, select_fields, predicates) {
+async function query_csv(filename, select_fields, predicates, should_stop_query) {
 
   // predicates replace 'value'
 
@@ -321,20 +322,31 @@ async function query_csv(filename, select_fields, predicates) {
     .on('data', 
       (row) => {
 
-        // Each predicate checks some field, on some range
-        // When all predicates are true, we know this row satisifes our query
-        let fulfills_predicates = predicates.reduce( (acc, predicate) => {
-          return acc && predicate(row); 
-        }, true)
+        if (should_stop_query(row)) {
+          console.log('STOP!');
+          resolve(query_results); // resolve to query results here, 
+          // let stream keep doing whatever it wants
+          // but we get our results back early at least.
+          read_stream.unpipe();
+        }
+        else {
+          console.log(row);
 
-        if (fulfills_predicates) {
-          // Filter all fields in the row to be just what was request by
-          // select_fields in the query
-          let row_result = {};
-          select_fields.forEach((field) => {
-            row_result[field] = row[field]
-          })
-          query_results.push(row_result);
+          // Each predicate checks some field, on some range
+          // When all predicates are true, we know this row satisifes our query
+          let fulfills_predicates = predicates.reduce( (acc, predicate) => {
+            return acc && predicate(row); 
+          }, true)
+
+          if (fulfills_predicates) {
+            // Filter all fields in the row to be just what was request by
+            // select_fields in the query
+            let row_result = {};
+            select_fields.forEach((field) => {
+              row_result[field] = row[field]
+            })
+            query_results.push(row_result);
+          }
         }
     })
     .on('end', () => {
@@ -347,59 +359,97 @@ async function query_csv(filename, select_fields, predicates) {
   })
 }
 
+
+function build_query_stopper(where_clause, filename) {
+  const tstp_where_clause = where_clause.find( clause => clause.field === 'tstp' )
+  const tstp_in_query =  tstp_where_clause !== undefined;
+  const cleaned_file = filename.indexOf('MAC') !== -1; // MAC files are cleaned data
+
+  return (row) => {
+    // console.log('tstp in query? :'+ tstp_in_query);
+    // console.log('cleand file? '+ cleaned_file);
+    if (tstp_in_query && cleaned_file) { // If we're looking at timestamps, and in a cleaned file, we might be able to end early
+      // this is false?
+      const val = f(row['tstp'], 'tstp');
+      const upper = f(tstp_where_clause.range[1], 'tstp');
+      //console.log(`val: ${val}, upper: ${upper}.`);
+      return val > upper; // Return true: stop when row tstp is greater than the upper bound of our range
+    }
+    else {
+      return false; // Never stop if we aren't on a clean file
+    }
+  }
+}
+
 // Converts json 'where' clauses to an array of predicates we can run through on each row 
 function build_query_predicates(where_clause) {
   return where_clause.map(
     (clause) => {
 
-      // Depending on what field our clause checks, we need to convert to the proper comparable objects
-      let f = (field) => {
+      const field_name = clause.field; 
+      // What field we're accessing in the row
+      // tells us how to format the value we're reading out of it for comparison
 
-        if (field === undefined) {
-          return field;
-        }
-
-        if (clause.field === 'tstp') {
-          //console.log(`String read in row: ${field}`);
-
-          // For NOT MAC02 files
-          const dateTimeString = field;
-          const [datePart, timePart] = dateTimeString.split(' '); // Split date and time parts
-          const [year, month, day] = datePart.split('-').map(Number); // Parse year, month, day
-          const [hours, minutes, seconds] = timePart.split(':').map(Number); // Parse hours, minutes, seconds
-
-          // Create a new Date object with the parsed values
-          const dateTime = new Date(year, month - 1, day, hours, minutes, seconds);
-          
-          //console.log(`Converted dateTime object: ${dateTime}`);
-          return dateTime;
-        }
-        else if (clause.field === 'energy(kWh/hh)') {
-          return field.trim();
-        }
-
-      }
-
-      const lower = f(clause.range[0]);
-      const upper = f(clause.range[1]);
+      const lower = f(clause.range[0], field_name);
+      const upper = f(clause.range[1], field_name);
 
       if (clause.range[0] === undefined) { // Lower range = inf
-        return row => (f(row[clause.field]) < upper)
+        return row => (f(row[clause.field], field_name) < upper)
       }
       else if (clause.range[1] === undefined) { // Upper range = inf
-        return row => (f(row[clause.field]) > lower)
+        return row => (f(row[clause.field], field_name) > lower)
       }
       else { // We have a range
         return row => {
-          const formatted_field = f(row[clause.field])
-          const above_lower = formatted_field > lower
-          const below_upper = formatted_field < upper
+          const value = f(row[field_name], field_name)
+          //console.log(`upper: ${upper} val: ${value} lower: ${lower}`);
+          const above_lower = value > lower
+          const below_upper = value < upper
 
           return (above_lower && below_upper);
         }
       }
     }
   )
+}
+
+const formatters = {
+  'tstp': (value) => { // Will only be used querying MAC files
+    //console.log(`String read in row: ${field}`);
+    // For NOT MAC02 files
+    const dateTimeString = value;
+    const [datePart, timePart] = dateTimeString.split(' '); // Split date and time parts
+    const [year, month, day] = datePart.split('-').map(Number); // Parse year, month, day
+    const [hours, minutes, seconds] = timePart.split(':').map(Number); // Parse hours, minutes, seconds
+
+    // Create a new Date object with the parsed values
+    const dateTime = new Date(year, month - 1, day, hours, minutes, seconds);
+    
+    //console.log(`Converted dateTime object: ${dateTime}`);
+    return dateTime;
+  },
+  'day': (value) => { // Will only be used querying Block files 
+    // For some reason, even though its written as mm/dd/yyyy it gets parsed as yyyy-mm-dd
+    const dateString = value.trim();
+    const [year, month, day] = dateString.split('-').map(Number);
+    // Create a new Date object with the parsed values
+    const dateTime = new Date(year, month - 1, day);
+    //console.log(`val ${dateString} -> ${dateTime}`);
+    return dateTime;
+  },
+  'energy(kWh/hh)': (value) => {
+    return value.trim();
+  }
+
+}
+
+// Formatter function. Format value by field_name's standard to make it comparable
+function f(value, field_name) {
+  if (value === undefined) {
+    return value;
+  }
+
+  return formatters[field_name](value);
 }
 
 function check_ACL(name) {
