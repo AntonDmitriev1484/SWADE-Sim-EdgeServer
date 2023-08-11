@@ -243,7 +243,8 @@ function call_local_read_endpoint_on_edge() {
             "select_fields": ['tstp', 'energy(kWh/hh)', 'LCLid'],
             "from_files": ['MAC000003.csv', 'MAC000004.csv'],
             "where": [
-                { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-01-03 00:00:00']}
+                { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-01-03 00:00:00']},
+                { field: 'energy(kWh/hh)', range: ['0.120', '0.150']}
             ]
         })
     })

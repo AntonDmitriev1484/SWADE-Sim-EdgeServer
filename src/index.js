@@ -361,14 +361,6 @@ function build_query_predicates(where_clause) {
         if (clause.field === 'tstp') {
           //console.log(`String read in row: ${field}`);
 
-          // Chat GPT code for converting this MAC02 file tstp into date time objects
-          // const dateString = field.trim();
-          // const [datePart, timePart] = dateString.split(' '); // Split date and time parts
-          // const [month, day, year] = datePart.split('/').map(Number); // Parse day, month, year
-          // const [hours, minutes] = timePart.split(':').map(Number); // Parse hours, minutes
-          // Create a new Date object with the parsed values
-          // const dateTime = new Date(year, month - 1, day, hours, minutes);
-
           // For NOT MAC02 files
           const dateTimeString = field;
           const [datePart, timePart] = dateTimeString.split(' '); // Split date and time parts
@@ -401,9 +393,6 @@ function build_query_predicates(where_clause) {
           const formatted_field = f(row[clause.field])
           const above_lower = formatted_field > lower
           const below_upper = formatted_field < upper
-
-          // console.log(`Upper: ${upper} - Lower: ${lower}`)
-          // console.log(`${formatted} above_lower: ${above_lower} below_upper: ${below_upper}`);
 
           return (above_lower && below_upper);
         }
