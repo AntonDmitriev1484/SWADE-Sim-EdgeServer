@@ -382,7 +382,7 @@ setTimeout(() => call_local_write_endpoint_on_edge('block_1.csv'), 6000);
 setTimeout(() => call_local_write_endpoint_on_edge('MAC000003.csv'), 6250);
 //setTimeout(() => call_local_write_endpoint_on_edge('MAC000004.csv'), 6500);
 
-setTimeout(() => call_local_read_endpoint_on_edge_test_block(['block_1.csv']), 7000);
+//setTimeout(() => call_local_read_endpoint_on_edge_test_block(['block_1.csv']), 7000);
 // Correct, never stopped, ran through all data but still returned the proper timestamp range.
 
 //setTimeout(() => call_local_read_endpoint_on_edge(['MAC000003.csv']), 7250);
@@ -390,10 +390,44 @@ setTimeout(() => call_local_read_endpoint_on_edge_test_block(['block_1.csv']), 7
 // Stopper works as intended for MAC!
 
 
+function call_filesys_read_endpoint_on_cloud_test_block(files) {
+    console.log('Reading cloud');
 
+    fetch(`http://fs:${EXPRESS_PORT}/filesys-read`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USERNAME,
+            "in_bucket": "A",
+            "select_fields": ['day', 'energy_median', 'LCLid'],
+            "from_files": files,
+            "where": [
+                { field: 'day', range: ['2012-04-01', '2012-04-05']},
+            ]
+        })
+    })
+    .then(res=> res.json() )
+    .then((response)=>{
+        // Not sure why you need to stringify it when it comes from the cloud, but this is chillin
+        console.log(response.query_results); //NOTE: QUery results aren't getting returned back
+    })
+    .catch((error)=>console.error("Error",error));
+}
 
+// Ok, so when you write one file after another, it fucks up the headers on the first?
+setTimeout(() => call_cloud_write_endpoint_on_edge('block_1.csv'), 6000);
+setTimeout(() => call_cloud_write_endpoint_on_edge('block_2.csv'), 6250);
+//setTimeout(() => call_cloud_write_endpoint_on_edge('MAC000003.csv'), 6250);
 
-
+//setTimeout(() => call_filesys_read_endpoint_on_cloud_test_block(['test/block_1.csv']), 7000);
+// Correct, never stopped, ran through all data but still returned the proper timestamp range.
+//setTimeout(() => call_filesys_read_endpoint_on_cloud_test_block(['test/MAC000003.csv']), 7250);
+setTimeout(() => call_filesys_read_endpoint_on_cloud_test_block(['test/block_2.csv']), 7250);
+// Correct, stopped immediatley after we reached something larger than 1/3/2013 00:00:00
+// Stopper works as intended for MAC!
 
 
 

@@ -188,10 +188,17 @@ init_connections()
       let COUNT = 0; // Number of lines read from file
       let CHUNKS_READ = 1;
       let CHUNK = [];
+
+      // FILE UPLOAD WORKS NORMALLY FOR MAC
+      // SHITS ITS PANTS ON BLOCK
+      // WHAT THE SWEET EVERLOVING FUCK JS THEY ARE BOTH CSVS
+      // When you write cloud two files of different format back to back it blows up one of their headers with [object Object]
+
       // Request holds path where this file will be stored on cloud filesystem
       fs.createReadStream(path)
       .pipe(csv())
       .on('headers', (headers) => {
+        console.log(headers);
         pub("file_upload", JSON.stringify({
           "user": USER,
           "bucket": `${process.env.LOCAL_GROUP}`,
@@ -323,7 +330,7 @@ async function query_csv(filename, select_fields, predicates, should_stop_query)
       (row) => {
 
         if (should_stop_query(row)) {
-          console.log('STOP!');
+          //console.log('STOP!');
           resolve(query_results); // resolve to query results here, 
           // let stream keep doing whatever it wants
           // but we get our results back early at least.
