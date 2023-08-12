@@ -193,6 +193,7 @@ init_connections()
       // SHITS ITS PANTS ON BLOCK
       // WHAT THE SWEET EVERLOVING FUCK JS THEY ARE BOTH CSVS
       // When you write cloud two files of different format back to back it blows up one of their headers with [object Object]
+      // Basically, only ever run this with one type of data in the system at a time.
 
       // Request holds path where this file will be stored on cloud filesystem
       fs.createReadStream(path)
