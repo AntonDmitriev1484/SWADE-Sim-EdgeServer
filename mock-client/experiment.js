@@ -53,12 +53,12 @@ const EDGE_TO_BLOCK_FILES = {
 const EDGE_TO_FILES = EXP.CLEANED_DATA ? EDGE_TO_MAC_FILES : EDGE_TO_BLOCK_FILES;
 
 
-    EDGE_TO_FILES.forEach((file, i) => {
-        if (i%2===0) { // Even files go to cloud
-            setTimeout(()=> call_cloud_write_endpoint_on_edge(file), INIT_TIME);
+    EDGE_TO_FILES[process.env.LOCAL_GROUP].forEach((file, i) => {
+        if (i%2===0) { // Half files go to cloud
+            setTimeout(()=> call_cloud_write_endpoint_on_edge(file), INIT_TIME+(200*i));
         }
-        else { // Odd files are local
-            setTimeout(()=> call_local_write_endpoint_on_edge(file), INIT_TIME);
+        else { // Half files are local
+            setTimeout(()=> call_local_write_endpoint_on_edge(file), INIT_TIME+(200*i));
         }
     })
 
@@ -66,7 +66,45 @@ const EDGE_TO_FILES = EXP.CLEANED_DATA ? EDGE_TO_MAC_FILES : EDGE_TO_BLOCK_FILES
 if (process.env.LOCAL_GROUP === 'A') {
     // Group A's u1 will be performing all queries
 
+    // Create a component for every file belonging to every org in the system,
+    // reduce them all into the same list of components
+    const query_components = Object.entries(EDGE_TO_FILES).reduce( (query_components, [group, files]) => {
+        let read_files_from_cloud = [];
+        let read_files_from_local = [];
+        files.forEach( (file, i) => {
+            if (i%2===0) { // Same half files read from cloud
+               read_files_from_cloud.push(file)
+            }
+            else { // Same half files are local
+                read_files_from_local.push(file)
+            }
+        })
+
+        query_components.push({
+            "owner": null,
+            "bucket": group,
+            "from_files": read_files_from_cloud
+        })
+
+        query_components.push({
+            "owner":group,
+            "from_files":read_files_from_local
+        })
+        return query_components;
+    }, [])
+    console.log(' Total query components: \n')
+    console.log( query_components);
+
+    // if (EXP.CLEANED_DATA) {
+    //     Q1_MAC(query_components);
+    // }
+    // else {
+    //     Q1_BLOCK(query_components);
+    // }
+        
 }
+
+
 
 
 
@@ -94,6 +132,8 @@ function call_local_write_endpoint_on_edge(filename) {
 
 
 function call_cloud_write_endpoint_on_edge(filename) {
+
+    // Endpoint on edge automatically sets up bucket and filepath
 
     const file = fs.createReadStream(`mock-client-data/${filename}`);
 
@@ -158,6 +198,10 @@ function Q1_MAC(query_components) {
         console.log(JSON.stringify(response.query_results));
     })
     .catch((error)=>console.error("Error",error));
+}
+
+function Q1_BLOCK(query_components) {
+
 }
 
 function Q2_MAC(query_components) {

@@ -169,7 +169,9 @@ async function build_pub_function(pub_address) {
 
 async function init_connections() {
   // Results will be in order of array elements
-  return Promise.all([connect_postgress(), cloud_registration(), build_publisher()]);
+  // return Promise.all([connect_postgress(), cloud_registration(), build_publisher()]);
+  // Don't need Postgres for our experiments
+  return Promise.all([cloud_registration(), build_publisher()]);
 }
 
 
@@ -181,8 +183,9 @@ init_connections()
 
   console.log('All initialization promises resolved!');
 
-  const pub = values[2]; // Grab our publisher function
-
+  //const pub = values[2]; // Grab our publisher function
+  const pub = values[1]; // Now at values 1 since we removed postgres
+  
   function pub_csv_cloud(path, filename) {
       const CHUNK_SIZE = 1000;
       let COUNT = 0; // Number of lines read from file
