@@ -303,7 +303,7 @@ init_connections()
 
     Promise.allSettled(query_promises)
     .then( query_results => {
-      console.log('EDGE sending response:'+JSON.stringify(query_results));
+      console.log('EDGE sending response:');
       res.send({query_results: query_results});
     })
     .catch( err => {
@@ -403,10 +403,10 @@ function build_query_predicates(where_clause) {
       const lower = f(clause.range[0], field_name);
       const upper = f(clause.range[1], field_name);
 
-      if (clause.range[0] === undefined) { // Lower range = inf
+      if (clause.range[0] === null) { // Lower range = inf
         return row => (f(row[clause.field], field_name) < upper)
       }
-      else if (clause.range[1] === undefined) { // Upper range = inf
+      else if (clause.range[1] === null) { // Upper range = inf
         return row => (f(row[clause.field], field_name) > lower)
       }
       else { // We have a range
@@ -449,13 +449,22 @@ const formatters = {
   },
   'energy(kWh/hh)': (value) => {
     return value.trim();
+  },
+  'energy_median': (value) => {
+    return value.trim();
+  },
+  'energy_mean': (value) => {
+    return value.trim();
+  },
+  'LCLid': (value) => {
+    return value.trim();
   }
 
 }
 
 // Formatter function. Format value by field_name's standard to make it comparable
 function f(value, field_name) {
-  if (value === undefined) {
+  if (value === null) {
     return value;
   }
 

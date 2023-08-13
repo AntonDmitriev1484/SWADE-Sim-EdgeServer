@@ -13,8 +13,8 @@ const E_URL = "http://e-srv:3000";
 const INIT_TIME = 7000;
 
 const EXP = {
-    CLEANED_DATA: true,
-    EDGE_SERVERS: 5,
+    CLEANED_DATA: false,
+    EDGE_SERVERS: 4,
     FILES_PER_EDGE: 4,
     FILES_SYNC_EDGE: 2,
     MAC_START: 3,
@@ -99,7 +99,10 @@ if (process.env.LOCAL_GROUP === 'A') {
     console.log( JSON.stringify(query_components));
 
     if (EXP.CLEANED_DATA) { // DONT STRINGIFY HERE
-        setTimeout(()=>Q1_MAC(query_components), INIT_TIME+10000);
+        setTimeout(()=>{
+            Q1_MAC(query_components)
+        }
+        , INIT_TIME+10000);
     }
     else {
         setTimeout(()=>Q1_BLOCK(query_components), INIT_TIME+10000);
@@ -157,24 +160,6 @@ function call_cloud_write_endpoint_on_edge(filename) {
     });
 }
 
-// [ 
-//     {
-//         "owner":null,
-//         "bucket": "B",
-//         "from_files":["test/MAC000004.csv"]
-//     },
-//     {
-//         "owner":"A",
-//          "from_files":["MAC000003.csv"]
-//     },
-//     {
-//         "owner":"C",
-//          "from_files":["MAC000005.csv"]
-//     }
-// ]
-
-// Make sure that undefined is working properly as inf!!!
-
 // body: JSON.stringify({
 //     "user": process.env.USERNAME,
 //     "select_fields": ['tstp', 'energy(kWh/hh)', 'LCLid'],
@@ -190,6 +175,9 @@ function call_cloud_write_endpoint_on_edge(filename) {
 function Q1_MAC(query_components) {
     console.log('Reading local and cloud data with hybrid-query, testing policy engine authentication');
 
+    const start = process.hrtime();
+    let end = 0;
+
     // NOTE: UNDEFINED GETS CHANGED TO NULL FOR SOME UNGODLY REASON
     fetch(`http://c-srv:${EXPRESS_PORT}/read-query`, {
         method: 'POST',
@@ -203,7 +191,42 @@ function Q1_MAC(query_components) {
             "query_components": query_components,
             "where": [
                 { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-02-01 00:00:00']},
-                { field: 'energy(kWh/hh)', range: ['0.120', '0.125']}
+                { field: 'energy(kWh/hh)', range: ['0.120', null]}
+            ]
+        }
+        )
+    })
+    .then(res=>res.json() )
+    .then((response)=>{
+        console.log("Q1_CLEANED results")
+        end = process.hrtime(start);
+        const elapsed = (end[0] * 1e9 + end[1]) / 1e6;
+        console.log('Q1_CLEANED ELAPSED TIME = '+elapsed+' ms.');
+        //console.log(JSON.stringify(response.query_results));
+    })
+    .catch((error)=>console.error("Error",error));
+}
+
+function Q1_BLOCK(query_components) {
+    console.log('Reading local and cloud data with hybrid-query, testing policy engine authentication');
+
+    const start = process.hrtime();
+    let end = 0;
+
+    // NOTE: UNDEFINED GETS CHANGED TO NULL FOR SOME UNGODLY REASON
+    fetch(`http://c-srv:${EXPRESS_PORT}/read-query`, {
+        method: 'POST',
+        headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+        },
+        body: JSON.stringify({
+            "user": process.env.USERNAME,
+            "select_fields": ['day', 'energy_mean', 'LCLid'],
+            "query_components": query_components,
+            "where": [
+                { field: 'day', range: ['2013-01-01', '2013-02-01']},
+                { field: 'energy_mean', range: ['0.120', null]},
             ]
             
         }
@@ -211,14 +234,13 @@ function Q1_MAC(query_components) {
     })
     .then(res=>res.json() )
     .then((response)=>{
-        console.log("Q1_MAC results")
-        console.log(JSON.stringify(response.query_results));
+        console.log("Q1_UNCLEANED results")
+        end = process.hrtime(start);
+        const elapsed = (end[0] * 1e9 + end[1]) / 1e6;
+        console.log('Q1_UNCLEANED ELAPSED TIME = '+elapsed+' ms.');
+        //console.log(JSON.stringify(response.query_results));
     })
     .catch((error)=>console.error("Error",error));
-}
-
-function Q1_BLOCK(query_components) {
-
 }
 
 function Q2_MAC(query_components) {
