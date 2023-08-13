@@ -29,20 +29,22 @@ const EDGE_TO_FILE_RANGE = {
     'E':4
 }
 
+// Going to change this to run on 3, because docker seems to be shitting itself quite often
+
 const EDGE_TO_MAC_FILES = {
     'A': ['MAC000003.csv','MAC000004.csv','MAC000005.csv','MAC000006.csv'],
     'B': ['MAC000007.csv','MAC000008.csv','MAC000009.csv','MAC000010.csv'],
     'C': ['MAC000011.csv','MAC000012.csv','MAC000013.csv','MAC000014.csv'],
-    'D': ['MAC000015.csv','MAC000016.csv','MAC000017.csv','MAC000018.csv'],
-    'E': ['MAC000019.csv','MAC000020.csv','MAC000021.csv','MAC000022.csv']
+    // 'D': ['MAC000015.csv','MAC000016.csv','MAC000017.csv','MAC000018.csv'],
+    // 'E': ['MAC000019.csv','MAC000020.csv','MAC000021.csv','MAC000022.csv']
 }
 
 const EDGE_TO_BLOCK_FILES = {
     'A': ['block_1.csv', 'block_2.csv', 'block_3.csv', 'block_4.csv'],
     'B': ['block_5.csv', 'block_6.csv', 'block_7.csv', 'block_8.csv'],
     'C': ['block_9.csv', 'block_10.csv', 'block_11.csv', 'block_12.csv'],
-    'D': ['block_13.csv', 'block_14.csv', 'block_15.csv', 'block_16.csv'],
-    'E': ['block_17.csv', 'block_18.csv', 'block_19.csv', 'block_20.csv'],
+    // 'D': ['block_13.csv', 'block_14.csv', 'block_15.csv', 'block_16.csv'],
+    // 'E': ['block_17.csv', 'block_18.csv', 'block_19.csv', 'block_20.csv'],
 }
 
 // Can determine a range of files to draw from, at the moment, my brain is cheese
@@ -73,7 +75,7 @@ if (process.env.LOCAL_GROUP === 'A') {
         let read_files_from_local = [];
         files.forEach( (file, i) => {
             if (i%2===0) { // Same half files read from cloud
-               read_files_from_cloud.push(file)
+               read_files_from_cloud.push('test/'+file)
             }
             else { // Same half files are local
                 read_files_from_local.push(file)
@@ -85,22 +87,23 @@ if (process.env.LOCAL_GROUP === 'A') {
             "bucket": group,
             "from_files": read_files_from_cloud
         })
-
         query_components.push({
             "owner":group,
             "from_files":read_files_from_local
         })
         return query_components;
     }, [])
-    console.log(' Total query components: \n')
-    console.log( query_components);
 
-    // if (EXP.CLEANED_DATA) {
-    //     Q1_MAC(query_components);
-    // }
-    // else {
-    //     Q1_BLOCK(query_components);
-    // }
+    
+    console.log(' Total query components: \n')
+    console.log( JSON.stringify(query_components));
+
+    if (EXP.CLEANED_DATA) { // DONT STRINGIFY HERE
+        setTimeout(()=>Q1_MAC(query_components), INIT_TIME+10000);
+    }
+    else {
+        setTimeout(()=>Q1_BLOCK(query_components), INIT_TIME+10000);
+    }
         
 }
 
@@ -172,10 +175,22 @@ function call_cloud_write_endpoint_on_edge(filename) {
 
 // Make sure that undefined is working properly as inf!!!
 
+// body: JSON.stringify({
+//     "user": process.env.USERNAME,
+//     "select_fields": ['tstp', 'energy(kWh/hh)', 'LCLid'],
+//     "query_components": query_components,
+//     "where": [
+//         { "field": 'tstp', "range": ['2013-01-01 00:00:00', '2013-02-01 00:00:00']},
+//         { "field": 'energy(kWh/hh)', "range": ['0.120', undefined]}
+//     ]
+    
+// }
+
 // Dynamically generate query_components and pass them in
 function Q1_MAC(query_components) {
     console.log('Reading local and cloud data with hybrid-query, testing policy engine authentication');
 
+    // NOTE: UNDEFINED GETS CHANGED TO NULL FOR SOME UNGODLY REASON
     fetch(`http://c-srv:${EXPRESS_PORT}/read-query`, {
         method: 'POST',
         headers: {
@@ -188,13 +203,15 @@ function Q1_MAC(query_components) {
             "query_components": query_components,
             "where": [
                 { field: 'tstp', range: ['2013-01-01 00:00:00', '2013-02-01 00:00:00']},
-                { field: 'energy(kWh/hh)', range: ['0.120', undefined]}
+                { field: 'energy(kWh/hh)', range: ['0.120', '0.125']}
             ]
             
-        })
+        }
+        )
     })
     .then(res=>res.json() )
     .then((response)=>{
+        console.log("Q1_MAC results")
         console.log(JSON.stringify(response.query_results));
     })
     .catch((error)=>console.error("Error",error));
@@ -218,13 +235,14 @@ function Q2_MAC(query_components) {
             "select_fields": ['tstp', 'energy(kWh/hh)', 'LCLid'],
             "query_components": query_components,
             "where": [
-                { field: 'energy(kWh/hh)', range: ['0.120', undefined]}
+                { "field": 'energy(kWh/hh)', "range": ['0.120', undefined]}
             ]
             
         })
     })
     .then(res=>res.json() )
     .then((response)=>{
+        
         console.log(JSON.stringify(response.query_results));
     })
     .catch((error)=>console.error("Error",error));

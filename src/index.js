@@ -303,9 +303,8 @@ init_connections()
 
     Promise.allSettled(query_promises)
     .then( query_results => {
-      console.log('EDGE '+query_results);
+      console.log('EDGE sending response:'+JSON.stringify(query_results));
       res.send({query_results: query_results});
-      console.log('sent res');
     })
     .catch( err => {
       console.log("Error performing query on requested files", err);
@@ -341,7 +340,7 @@ async function query_csv(filename, select_fields, predicates, should_stop_query)
           read_stream.unpipe();
         }
         else {
-          console.log(row);
+          //console.log(row);
 
           // Each predicate checks some field, on some range
           // When all predicates are true, we know this row satisifes our query
