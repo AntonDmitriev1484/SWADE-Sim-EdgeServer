@@ -425,7 +425,7 @@ function build_query_predicates(where_clause) {
 
 const formatters = {
   'tstp': (value) => { // Will only be used querying MAC files
-    //console.log(`String read in row: ${field}`);
+    //console.log(`String read in row: ${value}`);
     // For NOT MAC02 files
     const dateTimeString = value;
     const [datePart, timePart] = dateTimeString.split(' '); // Split date and time parts

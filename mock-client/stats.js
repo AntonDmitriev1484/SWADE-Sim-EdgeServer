@@ -23,7 +23,7 @@ async function find_stats(EDGE_TO_MAC_FILES, EDGE_TO_BLOCK_FILES, main_func) {
     const cleaned_files = Object.entries(EDGE_TO_MAC_FILES).reduce((acc, [group,files]) => {return acc.concat(files)}, [])
     const uncleaned_files = Object.entries(EDGE_TO_BLOCK_FILES).reduce((acc, [group,files]) => {return acc.concat(files)}, [])
     
-    console.log(cleaned_files);
+    //console.log(cleaned_files);
     let promises = cleaned_files.map(
             (file) => {
 
@@ -61,7 +61,7 @@ async function find_stats(EDGE_TO_MAC_FILES, EDGE_TO_BLOCK_FILES, main_func) {
     
         promises.concat (uncleaned_files.map(    
             (file) => {
-                console.log(file);
+                //console.log(file);
                 return new Promise((resolve, reject) => {
                     const read_stream = fs.createReadStream('mock-client-data/'+file);
                     read_stream.pipe(csv())
@@ -91,7 +91,7 @@ async function find_stats(EDGE_TO_MAC_FILES, EDGE_TO_BLOCK_FILES, main_func) {
         ))
 
     await Promise.all(promises);
-    console.log('done');
+    //console.log('done');
     //console.log(CLEANED);
     main_func(CLEANED, UNCLEANED);
 }
