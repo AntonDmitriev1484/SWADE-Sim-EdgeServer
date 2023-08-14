@@ -2,6 +2,9 @@ import fs from "fs";
 import FormData from "form-data"
 import  * as f from "../util/functions.js"
 import fetch from "node-fetch"
+import find_stat from "./stats.js"
+
+const {find_stats} = find_stat;
 
 const PG_PORT = 5432;
 const EXPRESS_PORT = 3000;
@@ -17,8 +20,6 @@ const EXP = {
     EDGE_SERVERS: 4,
     FILES_PER_EDGE: 4,
     FILES_SYNC_EDGE: 2,
-    MAC_START: 3,
-    BLOCK_START: 1,
 }
 
 const EDGE_TO_FILE_RANGE = {
@@ -47,9 +48,13 @@ const EDGE_TO_BLOCK_FILES = {
     // 'E': ['block_17.csv', 'block_18.csv', 'block_19.csv', 'block_20.csv'],
 }
 
-// Can determine a range of files to draw from, at the moment, my brain is cheese
-// so I'm just oging to hard code verything
-//const MAC_FILE_RANGE = (EXP.MAC_START, (EDGE_TO_FILE_RANGE[process.env.LOCAL_GROUP]*4) + 4)
+const stats = find_stats(EDGE_TO_MAC_FILES, EDGE_TO_BLOCK_FILES, experiment);
+
+
+
+function experiment(cleaned_stats, uncleaned_stats) {
+    console.log(cleaned_stats);
+    console.log(uncleaned_stats);
 
 
 const EDGE_TO_FILES = EXP.CLEANED_DATA ? EDGE_TO_MAC_FILES : EDGE_TO_BLOCK_FILES;
@@ -269,3 +274,5 @@ function Q2_MAC(query_components) {
     })
     .catch((error)=>console.error("Error",error));
 }
+}
+
